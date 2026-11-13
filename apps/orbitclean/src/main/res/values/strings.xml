@@ -1,0 +1,3 @@
+<resources>
+    <!-- app_name 来自本模块 brand.properties 的 APP_NAME（appbase.brand-app 插件生成的 resValue） -->
+</resources>

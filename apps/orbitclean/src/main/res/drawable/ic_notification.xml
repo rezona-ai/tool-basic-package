@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 通知栏小图标：沿用 ic_launcher_monochrome 的轨道 C + 星光轮廓，裁掉 108 画布四周留白；必须是透明背景 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+    <group
+        android:translateX="-22"
+        android:translateY="-21">
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M74,35C64,24 44,25 34,38C22,54 32,75 49,78C61,81 73,74 78,63"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineCap="round"
+            android:strokeWidth="7" />
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M29,65C39,69 61,61 73,49C81,41 82,34 77,32"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineCap="round"
+            android:strokeWidth="3" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M55,42L58,51L67,54L58,57L55,66L52,57L43,54L52,51Z" />
+    </group>
+</vector>

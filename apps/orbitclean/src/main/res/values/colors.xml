@@ -1,0 +1,4 @@
+<resources>
+    <!-- 与 ui/theme/Theme.kt 的 Bg 一致：冷启动窗口底色和 Compose 首帧无缝衔接 -->
+    <color name="bg">#FF04060B</color>
+</resources>
