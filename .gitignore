@@ -27,9 +27,22 @@ render.experimental.xml
 # Keystore files
 *.jks
 *.keystore
+# 上传密钥的密码配置（见 app/build.gradle.kts 的 signingConfigs）
+keystore.properties
+keystore-*.properties
+# 各品牌应用的正式广告 ID 等本机私有配置（见 build-logic 的 BrandAppPlugin）
+brand.local.properties
 
 # Google Services (e.g. APIs or Firebase)
 google-services.json
 
 # Android Profiling
 *.hprof
+
+.DS_Store
+
+# 竞品分析（脚本、报告与采集产物）仅本地保留，不入库
+analysis/
+
+# Claude Code 本机设置（skill 本身在 .claude/skills/ 下，需要入库）
+.claude/settings.local.json

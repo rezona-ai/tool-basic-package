@@ -1,0 +1,3 @@
+# app-ads.txt 模板：部署到开发者网站根目录（https://<开发者网站>/app-ads.txt），不会打进 App。
+# 基座不含真实发布商 ID。出正式包时把 pub-XXXXXXXXXXXXXXXX 换成 AdMob 后台“设置 → 账号信息”里的发布商 ID（16 位数字）。
+google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0

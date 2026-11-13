@@ -1,0 +1,8 @@
+Tool: built-in image_gen (transparent background)
+Use case: logo-brand.
+Asset type: Android adaptive launcher icon foreground for an app named Orbit Clean, a phone storage cleaning utility.
+Create a premium futuristic minimal emblem: a bold luminous cyan-to-electric-blue orbital letter C, made of two clean streamlined curved bands wrapping around a small crisp four-point cleaning sparkle at the center.
+Subtle polished dimensional bevel and restrained glow, extremely legible at 48 pixels, strong simple silhouette, balanced optically centered composition.
+Transparent background, no app tile, no rounded square, no background plane, no ground shadow, no typography, no words, no watermark, no phone mockup.
+Important Android safe-zone framing: the complete emblem INCLUDING glow must fit within the CENTER 56% of the square canvas (roughly x=22%..78%, y=22%..78%); leave the outer 22% on each edge entirely transparent.
+It will be composited over a very dark navy blue background. Single standalone finished emblem, square image.

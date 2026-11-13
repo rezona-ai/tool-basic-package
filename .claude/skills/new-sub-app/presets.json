@@ -1,0 +1,109 @@
+{
+  "_comment": "配色与 UI 风格预设。颜色写成 Compose 的 0xAARRGGBB；hex 字段用于图标、隐私政策页面和预览。新增预设时保持与已上架包的视觉明显不同（见 apps/REGISTRY.md 的视觉列）。",
+  "palettes": [
+    {
+      "id": "ocean-light", "name": "海盐蓝 · 浅色", "summary": "白底，亮蓝主色 + 青绿辅色，清爽工具感",
+      "isDark": false,
+      "bg": "0xFFF6F8FB", "textPrimary": "0xFF0F1B2D", "textSoft": "0xFF31435B", "textSecondary": "0xFF5B6B80", "textDim": "0xFF8A97A8",
+      "primary": "0xFF1E6FFF", "secondary": "0xFF00B3A4", "danger": "0xFFE5484D", "onAccent": "0xFFFFFFFF",
+      "card": "0xFFFFFFFF", "line": "0x1A0F1B2D", "dialog": "0xFFFFFFFF",
+      "gradientStart": "0xFF1E6FFF", "gradientEnd": "0xFF00B3A4",
+      "hex": "#1E6FFF", "hexDark": "#1557CC", "iconBgStart": "#2E7BFF", "iconBgEnd": "#00A396", "iconFg": "#FFFFFF"
+    },
+    {
+      "id": "forest-light", "name": "森绿 · 浅色", "summary": "米白底，森林绿主色 + 琥珀辅色，自然安心",
+      "isDark": false,
+      "bg": "0xFFF5F8F4", "textPrimary": "0xFF14251A", "textSoft": "0xFF2F4536", "textSecondary": "0xFF5C6F61", "textDim": "0xFF8C9B90",
+      "primary": "0xFF2E9D5B", "secondary": "0xFFE0A526", "danger": "0xFFD64545", "onAccent": "0xFFFFFFFF",
+      "card": "0xFFFFFFFF", "line": "0x1A14251A", "dialog": "0xFFFFFFFF",
+      "gradientStart": "0xFF2E9D5B", "gradientEnd": "0xFF7CC36E",
+      "hex": "#2E9D5B", "hexDark": "#237A46", "iconBgStart": "#3AAE68", "iconBgEnd": "#1F7A45", "iconFg": "#FFFFFF"
+    },
+    {
+      "id": "sunset-light", "name": "暖橙 · 浅色", "summary": "暖白底，珊瑚橙主色 + 紫色辅色，活泼醒目",
+      "isDark": false,
+      "bg": "0xFFFFF8F3", "textPrimary": "0xFF2B1A12", "textSoft": "0xFF4D3428", "textSecondary": "0xFF7A6156", "textDim": "0xFFA8948A",
+      "primary": "0xFFF26B3A", "secondary": "0xFF7A5CFA", "danger": "0xFFD93838", "onAccent": "0xFFFFFFFF",
+      "card": "0xFFFFFFFF", "line": "0x1A2B1A12", "dialog": "0xFFFFFFFF",
+      "gradientStart": "0xFFF26B3A", "gradientEnd": "0xFFF9A03F",
+      "hex": "#F26B3A", "hexDark": "#C9532A", "iconBgStart": "#F9A03F", "iconBgEnd": "#F26B3A", "iconFg": "#FFFFFF"
+    },
+    {
+      "id": "lavender-light", "name": "薰衣草 · 浅色", "summary": "淡紫底，靛紫主色 + 粉色辅色，柔和私密",
+      "isDark": false,
+      "bg": "0xFFF7F6FD", "textPrimary": "0xFF1C1A33", "textSoft": "0xFF3B3860", "textSecondary": "0xFF66638A", "textDim": "0xFF9896B5",
+      "primary": "0xFF6C5CE7", "secondary": "0xFFFF7EB6", "danger": "0xFFE5484D", "onAccent": "0xFFFFFFFF",
+      "card": "0xFFFFFFFF", "line": "0x1A1C1A33", "dialog": "0xFFFFFFFF",
+      "gradientStart": "0xFF6C5CE7", "gradientEnd": "0xFFA78BFA",
+      "hex": "#6C5CE7", "hexDark": "#5446C2", "iconBgStart": "#8B7CF6", "iconBgEnd": "#5B4BD6", "iconFg": "#FFFFFF"
+    },
+    {
+      "id": "midnight-dark", "name": "午夜蓝 · 深色", "summary": "深蓝底，亮蓝主色 + 冰青辅色，沉稳科技",
+      "isDark": true,
+      "bg": "0xFF0B1020", "textPrimary": "0xFFE8ECF6", "textSoft": "0xFFC3CADB", "textSecondary": "0xFF8D97AE", "textDim": "0xFF5E6880",
+      "primary": "0xFF4F8BFF", "secondary": "0xFF7CE7FF", "danger": "0xFFFF6B6B", "onAccent": "0xFF06101F",
+      "card": "0x14FFFFFF", "line": "0x1FFFFFFF", "dialog": "0xFF151B2E",
+      "gradientStart": "0xFF4F8BFF", "gradientEnd": "0xFF7CE7FF",
+      "hex": "#4F8BFF", "hexDark": "#3A6FD6", "iconBgStart": "#1B2A52", "iconBgEnd": "#0B1020", "iconFg": "#7CE7FF"
+    },
+    {
+      "id": "graphite-dark", "name": "石墨 · 深色", "summary": "炭灰底，明黄主色 + 银灰辅色，专业利落",
+      "isDark": true,
+      "bg": "0xFF111214", "textPrimary": "0xFFF2F2F3", "textSoft": "0xFFD0D1D4", "textSecondary": "0xFF9A9CA3", "textDim": "0xFF6B6E76",
+      "primary": "0xFFFFC53D", "secondary": "0xFFA1A1AA", "danger": "0xFFFF6B6B", "onAccent": "0xFF1A1300",
+      "card": "0x12FFFFFF", "line": "0x1FFFFFFF", "dialog": "0xFF1C1D21",
+      "gradientStart": "0xFFFFC53D", "gradientEnd": "0xFFFF9F1C",
+      "hex": "#E0A800", "hexDark": "#B38600", "iconBgStart": "#2A2B30", "iconBgEnd": "#111214", "iconFg": "#FFC53D"
+    },
+    {
+      "id": "emerald-dark", "name": "翡翠 · 深色", "summary": "墨绿底，翡翠绿主色 + 浅金辅色，安全可靠",
+      "isDark": true,
+      "bg": "0xFF07130F", "textPrimary": "0xFFE6F4EE", "textSoft": "0xFFBFD6CC", "textSecondary": "0xFF86A397", "textDim": "0xFF587266",
+      "primary": "0xFF2EE59D", "secondary": "0xFFF5D76E", "danger": "0xFFFF6B6B", "onAccent": "0xFF04140D",
+      "card": "0x12FFFFFF", "line": "0x1FFFFFFF", "dialog": "0xFF10211A",
+      "gradientStart": "0xFF2EE59D", "gradientEnd": "0xFF9BF6CF",
+      "hex": "#1FB57A", "hexDark": "#178F60", "iconBgStart": "#123A2B", "iconBgEnd": "#07130F", "iconFg": "#2EE59D"
+    },
+    {
+      "id": "rose-dark", "name": "玫瑰 · 深色", "summary": "酒红黑底，玫瑰粉主色 + 杏橙辅色，时尚私人",
+      "isDark": true,
+      "bg": "0xFF150B12", "textPrimary": "0xFFF7E9F0", "textSoft": "0xFFD9C2CE", "textSecondary": "0xFFA88C9A", "textDim": "0xFF75606B",
+      "primary": "0xFFFF5C93", "secondary": "0xFFFFB86B", "danger": "0xFFFF6B6B", "onAccent": "0xFF1F0611",
+      "card": "0x12FFFFFF", "line": "0x1FFFFFFF", "dialog": "0xFF24121D",
+      "gradientStart": "0xFFFF5C93", "gradientEnd": "0xFFFF9A8B",
+      "hex": "#E0457A", "hexDark": "#B83563", "iconBgStart": "#3A1A2B", "iconBgEnd": "#150B12", "iconFg": "#FF5C93"
+    }
+  ],
+  "styles": [
+    {
+      "id": "soft-cards", "name": "柔和卡片", "summary": "大圆角、浮起卡片、纯色胶囊按钮、圆形图标底座、无衬线",
+      "cornerScale": 1.3, "surface": "Elevated", "button": "Solid", "pillButton": true, "uppercaseButton": false, "circleBadge": true,
+      "fontFamily": "SansSerif", "buttonTracking": 0.2
+    },
+    {
+      "id": "outline-minimal", "name": "线框极简", "summary": "小圆角、只有描边、描边按钮、方形图标底座，信息密度高",
+      "cornerScale": 0.6, "surface": "Outlined", "button": "Outlined", "pillButton": false, "uppercaseButton": false, "circleBadge": false,
+      "fontFamily": "SansSerif", "buttonTracking": 0.0
+    },
+    {
+      "id": "flat-material", "name": "扁平 Material", "summary": "中等圆角、纯色平铺卡片、纯色方角按钮、圆形图标底座",
+      "cornerScale": 0.8, "surface": "Flat", "button": "Solid", "pillButton": false, "uppercaseButton": false, "circleBadge": true,
+      "fontFamily": "Default", "buttonTracking": 0.1
+    },
+    {
+      "id": "sharp-tech", "name": "锐利科技", "summary": "近直角、描边面板、纯色大写按钮、等宽字体，像专业工具",
+      "cornerScale": 0.2, "surface": "Outlined", "button": "Solid", "pillButton": false, "uppercaseButton": true, "circleBadge": false,
+      "fontFamily": "Monospace", "buttonTracking": 1.5
+    },
+    {
+      "id": "classic-serif", "name": "经典衬线", "summary": "中小圆角、平铺卡片、描边胶囊按钮、衬线标题，文档气质",
+      "cornerScale": 0.7, "surface": "Flat", "button": "Outlined", "pillButton": true, "uppercaseButton": false, "circleBadge": true,
+      "fontFamily": "Serif", "buttonTracking": 0.3
+    },
+    {
+      "id": "rounded-playful", "name": "圆润活泼", "summary": "超大圆角、浅色填充卡片、渐变胶囊按钮、圆形图标底座",
+      "cornerScale": 1.6, "surface": "Tinted", "button": "Gradient", "pillButton": true, "uppercaseButton": false, "circleBadge": true,
+      "fontFamily": "SansSerif", "buttonTracking": 0.2
+    }
+  ]
+}
