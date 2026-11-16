@@ -21,6 +21,9 @@ rootProject.name = "AppBase"
 // 公共模块：所有品牌共用，不含任何品牌值
 include(":core:common", ":core:ads", ":core:storage", ":core:ui")
 
+// 共享功能层：不含品牌值，复刻模式的品牌应用按需依赖（Orbit Clean 不依赖）
+include(":features:cleaner")
+
 // 品牌应用：apps 下每个含 build.gradle.kts 的目录是一个应用模块（模块路径 :apps:<目录名>）
 rootDir.resolve("apps").listFiles()
     ?.filter { it.isDirectory && it.resolve("build.gradle.kts").isFile }

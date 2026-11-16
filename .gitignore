@@ -32,6 +32,10 @@ keystore.properties
 keystore-*.properties
 # 各品牌应用的正式广告 ID 等本机私有配置（见 build-logic 的 BrandAppPlugin）
 brand.local.properties
+# Play 账号配置与账号网站文件只留本机；只有说明和模板入库（见 accounts/README.md）
+accounts/*
+!accounts/README.md
+!accounts/example/
 
 # Google Services (e.g. APIs or Firebase)
 google-services.json

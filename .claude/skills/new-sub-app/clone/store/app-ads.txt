@@ -1,0 +1,4 @@
+# app-ads.txt：部署到本账号开发者网站的根目录（WEBSITE_ROOT/app-ads.txt），不会打进 App。
+# 同一账号的所有包共用这一份；account.py site {{ACCOUNT}} 会按账号配置生成到 accounts/{{ACCOUNT}}/site/app-ads.txt。
+# 账号没配好发布商 ID 时下面是假 ID；AccountGuard 打 AAB 前会检查这里只写本账号的发布商。
+google.com, {{PUBLISHER_ID}}, DIRECT, f08c47fec0942fa0

@@ -1,20 +1,24 @@
 ---
 name: new-sub-app
-description: 基于当前基座代码生成一个新的马甲包（品牌应用模块 apps/<slug>）。用户说"基于当前基座代码输出一个马甲包应用"、"出一个新马甲包"、"新建 sub-app / 新品牌应用"时使用。依次让用户选出包方式（换领域 / 同领域）、功能方向、主题色、UI 风格，填品牌信息和 AdMob ID，确认后生成模块代码、编译并在模拟器上验证。
+description: 基于当前基座代码生成一个新的马甲包（品牌应用模块 apps/<slug>）。用户说"基于当前基座代码输出一个马甲包应用"、"出一个新马甲包"、"新建 sub-app / 新品牌应用"、"复刻 / 换皮一个包"时使用。依次让用户选出包方式（换领域 / 同领域 / 复刻）、功能方向或变体组合、主题色、UI 风格，填品牌信息、所属账号和 AdMob ID，确认后生成模块代码、编译并在模拟器上验证。
 ---
 
 # 生成马甲包（品牌应用模块）
 
 基座结构：`core/` 下四个公共模块（common、ads、storage、ui），`apps/<slug>/` 每个目录一个品牌应用，构建约定在 `build-logic/`。新包 = 在 `apps/` 下新建一个模块，**core 不改**。用户说的"sub-app 目录"就是 `apps/<slug>/`。
 
-开始前先读：`CLAUDE.md`、`core/CLAUDE.md`、`apps/REGISTRY.md`、本目录的 `references/directions.md` 与 `references/checklist.md`、`presets.json`。全程用中文和用户交流。
+开始前先读：`CLAUDE.md`、`core/CLAUDE.md`、`apps/REGISTRY.md`、本目录的 `references/directions.md` 与 `references/checklist.md`、`presets.json`；复刻模式另读 `features/cleaner/CLAUDE.md`、`accounts/README.md`。全程用中文和用户交流。
 
 ## 硬性规则
 
-- **只做 L2 及以上**：新包的核心用途、主流程、数据来源与权限必须和 `apps/REGISTRY.md` 里所有已有包不同。主题色和 UI 风格只是让它看起来不同，不能替代功能差异。用户坚持要做重叠方向时，说明会被判重复内容，并请用户换方向。
-- **不做同功能复刻（L0 换皮 / L1 换交互）**：用户要求「和 Orbit Clean（或任何已有包）功能一样，只把界面、图标、文案换掉」时，不生成。说明原因：Play 按核心功能、内容、用户体验判断重复内容，换界面和文案抵消不了功能相同；下架会记警告，累积后终止账号，同账号的已上架包会一起下架（见 docs/马甲包调研文档-第二版.md）。可以给的替代：同领域换核心功能（第 0 步的方式 2），或者给已有包建自定义商店页面（同一个应用最多 50 个，可以用不同的图标图、截图、文案投放）。
-- **不碰规避类做法**：不做代码混淆或资源打乱来规避相似度检测，不做审核期和上线后不同内容，不提供多账号隔离、身份或设备伪装方面的建议。
-- **不复制 Orbit Clean 的视觉标识**：土星场景（ui/saturn）、原型组件（Orbit.kt、Design.kt）、Unbounded / Sora 字体组合不进新包。
+- **换领域、同领域只做 L2 及以上**：新包的核心用途、主流程、数据来源与权限必须和 `apps/REGISTRY.md` 里所有已有包不同。主题色和 UI 风格只是让它看起来不同，不能替代功能差异。用户在这两种方式里要做和已有包重叠的方向时，引导到方式 3「复刻」。
+- **复刻（L0 换皮 / L1 换交互）只按「复刻模式」做**：前提是用户已确认的两点——各 Play 账号互相隔离、AdMob 不共用；Play 对同一开发者（及关联账号）的重复应用会判垃圾应用，所以复刻包必须放到别的账号，并守住：
+  - 必填 `account`，不能是母包所在的账号；同一账号里同一个母包只能有一个复刻包；
+  - 账号之间的数据一个都不串：AdMob 发布商、签名、网站域名、邮箱、隐私政策都用本账号的（打 AAB 时 build-logic 的 AccountGuard 会查）；
+  - 至少 3 个变体轴和母包不同，场景不用母包的；配色、风格、图标、全部文案按本包重做。
+- **不碰规避类做法**：不做代码混淆或资源打乱来规避相似度检测，不做审核期和上线后不同内容，不提供冒用他人身份、买卖账号、设备或网络伪装、躲避账号关联检测方面的做法。账号隔离只指「各账号用各自真实的配置，不互相串」。
+- **不复制 Orbit Clean 的视觉标识**：土星场景（ui/saturn）、原型组件（Orbit.kt、Design.kt）、Unbounded / Sora 字体组合不进新包（复刻包也一样）。
+- **不改母包**：复刻用的是 `:features:cleaner` 里复制出来的功能代码，`apps/orbitclean` 一行不动。
 - **权限最小化**：优先不需要权限的系统选择器（Photo Picker、SAF）。不申请所有文件访问、照片视频权限。
 - **不经手密钥和密码**：上传密钥让用户自己用 keytool 生成。
 - 用户可能随时改主意：任一步选了"其他"，按用户输入处理；信息不够时只追问那一项。
@@ -26,7 +30,34 @@ AskUserQuestion 单选，header「出包方式」：
 - **换领域**：功能和已有包完全不同（例如二维码、图片压缩、图片转 PDF），文件只通过照片选择器和系统保存对话框进出。对应 directions.md 的 A 表，config 不填 `folderAccess`。
 - **同领域**：和 Orbit Clean 同属手机文件工具，复用它已经过审的文件夹授权和文件读写能力，所以更快；但核心功能必须是 Orbit Clean 没有的（例如批量重命名、压缩包、文件夹备份、照片按日期归档）。对应 directions.md 的 B 表，config 填 `"folderAccess": true`，并且要守 B 表下的「同领域的红线」。
 
-两个选项的 description 都写明：两种方式都必须是不同的核心功能，不做同功能换皮。
+- **复刻（L0 / L1）**：和母包（目前只有 Orbit Clean）功能相同，换皮肤、交互、文案、图标，放到另一个 Play 账号。不选功能方向，直接走下面的「复刻模式」。
+
+前两个选项的 description 写明：核心功能必须和已有包不同。第三个写明：功能和母包相同，必须放到另一个账号（各账号互相隔离、AdMob 不共用）。
+
+## 复刻模式（第 0 步选了「复刻」时，代替第 1～7 步）
+
+功能层是 `:features:cleaner`（从 Orbit Clean 复制、去掉品牌值），界面模板在本目录的 `clone/`：公共文件 + `clone/variants/<轴>/<取值>/`。scaffold.py 依次铺 template/ → clone/ → 选中的变体。
+
+**C1. 账号。** 运行 `python3 .claude/skills/new-sub-app/account.py list` 看已有账号和每个账号下的包。AskUserQuestion 单选，header「所属账号」：已有账号（description 写开发者名、网站、已有的包；已经有同一母包复刻的账号不列）+「新建账号」。选新建时让用户给一个账号 id（小写字母、数字、连字符），运行 `account.py init <id>`，告诉用户去填 `accounts/<id>/account.properties` 的五项（开发者名称、网站根地址、联系邮箱、AdMob 发布商 ID、签名配置文件）。这些值不经手密码；没填也能先生成和打 debug 包，打 AAB 时才会拦。
+
+**C2. 母包。** presets.json 的 `cloneParents` 里只有 orbitclean 时不用问，直接说明。
+
+**C3. 变体组合。** 先读 REGISTRY 里同一母包已有复刻包用的组合（brand.properties 的 CLONE_VARIANTS），再从 presets.json 的 `cloneVariants` 给建议组合：至少 3 个轴和母包（`cloneParents[].variants`）不同、场景不用 saturn、和已有复刻包不同。AskUserQuestion 一次问 4 题（header：场景、导航、首页、清理流程），每题第一个选项放建议值，description 写变体的 summary；文件页布局（list / grid）和完成页（summary / checklist）按差异需要直接定，在确认步骤里写明。
+
+**C4. 主题色、UI 风格。** 同第 2、3 步，另外要和母包（深空深色、土星金 + 品牌青）以及同一母包的其他复刻包明显不同。
+
+**C5. 品牌信息与 AdMob。** 同第 4、5 步，默认值改为从账号来：隐私政策 `<WEBSITE_ROOT><slug>/privacy/`、网站 `<WEBSITE_ROOT><slug>/`、反馈邮箱用账号的 FEEDBACK_EMAIL。AdMob ID 的发布商部分必须等于账号的 ADMOB_PUBLISHER_ID，不符就说明原因并重问。应用名不能含母包名或「Orbit」之类的字样。
+
+**C6. 确认。** 汇总：出包方式（复刻，母包）、账号、变体组合（六个轴，和母包不同的轴标出来）、主题色、风格、slug、包名、应用名、介绍、链接、邮箱、AdMob。AskUserQuestion「按这个生成吗？」。
+
+**C7. 生成。**
+1. config.json 写 `"mode": "clone"`、`"parent": "orbitclean"`、`"account"`、`"variants": {scene, nav, home, clean, browser, done}`，其余字段同第 7 步（不填 folderAccess）。为本包设计新的 `iconGlyph`，不要用土星、星球、轨道图形。
+2. `scaffold.py create <config.json>`：它会拦同账号同母包、变体差异不足、和已有复刻同组合的情况。
+3. **重写全部文案**（这是 L0 的主要工作量）：`data/Copy.kt`（类别名、简介、分组名、提醒）、各页面里的英文（按钮、标题、空状态、弹窗）、`MainActivity` 闪屏用的 tagline。语气和用词按本包定位重写，不沿用模板默认值，也不照抄母包或其他复刻包。
+4. 不改 `:features:cleaner`：需要改功能逻辑时先说明会影响所有复刻包，经用户同意再改，改完跑它的单测和至少一个复刻包的编译。
+5. 填 store/ 下的占位正文（同第 7 步第 4 点），内容要和清理 + 文件管理的实际功能、文件夹授权、通知权限一致。
+6. 更新 REGISTRY（总览一行 + 详细记录，写明账号、母包、变体组合）和模块 CLAUDE.md。
+7. 第 8 步验证按 checklist 的 A2 + B 节；另外运行 `account.py site <账号>` 生成本账号的网站文件（app-ads.txt + 各包隐私政策），交付时告诉用户上传到 WEBSITE_ROOT。
 
 ## 第 1 步：功能方向
 
@@ -97,6 +128,8 @@ AskUserQuestion 一次问 4 题：AdMob 应用 ID、横幅、插屏、开屏广�
 
 按 `references/checklist.md` 的 B 节逐项跑，发现问题就修，修完再跑。在模拟器上测试广告可以关，但不要点广告内容。
 
+**电脑上连着多台设备时**（`adb devices` 里除了 emulator 还有真机），先 `export ANDROID_SERIAL=emulator-5554`，所有 adb、emu.py、verify_release.py、store_assets.py 命令只操作模拟器，不碰用户的手机。
+
 **操作模拟器用 `emu.py`**（在仓库根目录运行，命令见文件头）：`tap "<文字>"` 按文字点击（先精确匹配）、`type "<输入框标签>" "<内容>"` 输入并核对、`hide-keyboard` 只在键盘弹出时收起、`wait "<文字>"` 等页面出现、`scroll up|down` 滚动（列表项被底部按钮挡住时先滚出来再点）、`consent` 回答 GDPR 授权表单（debug 包模拟欧洲地区，全新安装首次启动必弹）、`close-ad` 关广告、`shot <png>` 截图查看。不要用坐标点击或直接按返回键收键盘：键盘弹出会让页面上移，键盘没弹出时返回键会退出页面。`adb input text` 只能输入 ASCII，示例内容用英文。
 
 1. **debug 包：** `./gradlew :apps:<slug>:testDebugUnitTest :apps:<slug>:assembleDebug`，装到模拟器上用 emu.py 走一遍核心流程，确认无崩溃，截图看首页和设置页的配色与风格是否生效。
@@ -121,7 +154,8 @@ AskUserQuestion 一次问 4 题：AdMob 应用 ID、横幅、插屏、开屏广�
 - 生成了什么：模块路径、方向、配色 / 风格、核心页面、广告位、权限，并贴一两张模拟器截图。
 - 验证结果：debug 包和 release 包分别在模拟器上验证了什么，哪些没有验证。
 - 商店素材和提审材料：`store/` 下的图标、置顶大图、截图（`store_assets.py check` 的结果），以及 `store/submission.md`。
-- 差异化清单 A 节逐项结论。
+- 差异化清单 A 节逐项结论（复刻包写 A2 节）。
+- 复刻包另写：所属账号、账号配置是否填全（`account.py list`）、网站文件在 `accounts/<账号>/site/`。
 - 上传前用户要做的事：checklist C 节，以及生成上传密钥的命令（只给命令，密码由用户自己设）：
 
 ```bash
