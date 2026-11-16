@@ -3,7 +3,8 @@
 一套用来批量出「安卓工具类 + 广告变现（IAA）」应用的基座。公共能力（广告、频控、归因、评分、提醒、文件夹授权、主题骨架、通用页面）放在 `core/`，每个品牌应用（马甲包）是 `apps/` 下的一个独立模块，只放自己的品牌值和业务代码。
 
 - 首个品牌：**Orbit Clean**（深空土星主题的文件管理 + 清理），已在 Google Play 上架。
-- 出新包：在 Claude Code 里说「基于当前基座代码输出一个马甲包应用」，由 `new-sub-app` skill 引导完成（见[第 7 节](#7-用-skill-出马甲包)）。
+- 已生成、未上架：**QR Atelier**（`apps/qrkit`，二维码工具）、**Namewise**（`apps/renamer`，批量重命名）。
+- 出新包：在 Claude Code 里说「基于当前基座代码输出一个马甲包应用」，由 `new-sub-app` skill 引导完成，完整流程见[第 7 节](#7-用-skill-出马甲包)。
 
 > ⚠️ **Orbit Clean 已上架，`apps/orbitclean/` 下的任何文件都不要改**（代码、资源、`brand.properties`、`store/`）。对 `core/`、`build-logic/` 的改动只能做加法：不加新配置时，Orbit Clean 的构建产物必须和原来一致。
 
@@ -73,10 +74,13 @@ core/                     公共模块（包名 com.appbase.core），不含任�
   ui/                     主题骨架、通用组件、设置页、启动流程
 apps/                     品牌应用，每个子目录一个模块（:apps:<目录名>），自动发现
   orbitclean/             Orbit Clean（已上架，只读）
+  qrkit/                  QR Atelier：二维码工具（skill 生成，未上架）
+  renamer/                Namewise：批量重命名（skill 生成，同领域，未上架）
   REGISTRY.md             已出包登记表：出新包前必读
 build-logic/              构建约定插件
   convention/             appbase.core-library、appbase.brand-app（BrandAppPlugin.kt）
-.claude/skills/new-sub-app/  出马甲包的 skill（模板、预设、scaffold.py 生成模块、store_assets.py 商店素材）
+.claude/skills/new-sub-app/  出马甲包的 skill（模板、预设、scaffold.py 生成模块、emu.py 操作模拟器、
+                             verify_release.py 验证 release 包、store_assets.py 商店素材）
 docs/                     接入说明、提审材料、马甲包调研
 gradle/libs.versions.toml 依赖版本
 ```
@@ -178,54 +182,138 @@ gradle/libs.versions.toml 依赖版本
 
 ## 7. 用 skill 出马甲包
 
-skill 位置：[.claude/skills/new-sub-app/](.claude/skills/new-sub-app/SKILL.md)。在本仓库打开 Claude Code 就能用。
+skill 位置：[.claude/skills/new-sub-app/](.claude/skills/new-sub-app/SKILL.md)。在本仓库打开 Claude Code 就能用。已经用它出过两个包：[QR Atelier](apps/qrkit)（换领域，二维码工具）和 [Namewise](apps/renamer)（同领域，批量重命名）。
 
-### 7.1 怎么触发
+### 7.1 整体流程
+
+```
+准备（你）              对话里回答问题（你）           skill 自动完成                       交付后（你）
+─────────────          ──────────────────          ──────────────────────────         ──────────────────
+启动模拟器              0 出包方式                   7 生成模块、实现核心功能              试用 debug 包
+新建 git 分支    →      1 功能方向           →      8 单测、debug / release 装机验证  →   看代码、提交
+（可选）想好账号、网站    2 主题色  3 UI 风格          商店素材、截图                       换掉占位值
+                       4 品牌信息 5 AdMob           填隐私政策、商店页、提审材料          上架前清单（第 9 节）
+                       6 确认                       9 汇报
+```
+
+- 你只需要在第 0–6 步回答选择题，每一步都可以选「其他」自己填。
+- 第 7–9 步由 skill 自己完成，中间不需要你操作。整个过程比较长，大部分时间花在实现核心功能和模拟器验证上。
+- skill **不会提交 git**。
+
+### 7.2 开始前准备
+
+| 项 | 要求 | 为什么 |
+|---|---|---|
+| 模拟器 | 启动一个模拟器，`adb devices` 能看到它 | 第 8 步要在模拟器上走核心流程、截商店截图 |
+| Google Chrome、Pillow | 本机装了 Chrome；Python 能 `import PIL` | 渲染商店图标和置顶大图、处理截图 |
+| git 分支 | 从 `main` 新建一个分支，工作区干净 | 新包会生成几十个文件，方便单独审查和提交 |
+| 账号、网站（可选） | 想好新包放在哪个 Play 开发者账号、隐私政策放在哪个网站 | 不影响生成，但上架前必须定；没定就先用占位值 |
+
+```bash
+adb devices
+```
+
+### 7.3 触发
 
 对 Claude Code 说下面任意一句：
 - 「基于当前基座代码输出一个马甲包应用」
 - 「出一个新马甲包」
 - 「新建一个品牌应用」
 
-### 7.2 流程
+### 7.4 你要回答的问题（第 0–6 步）
 
-| 步骤 | 做什么 |
+| 步骤 | 你要选什么 | 建议 |
+|---|---|---|
+| 0. 出包方式 | **换领域**：功能和已有包完全不同，文件只通过照片选择器、系统保存对话框进出。**同领域**：和 Orbit Clean 同属文件工具，复用它的文件夹授权能力，出包更快，但核心功能必须不同 | 两种都可以；同领域的包在同一个账号里一次只上一个 |
+| 1. 功能方向 | skill 读 [apps/REGISTRY.md](apps/REGISTRY.md) 后，从方向库对应的表里挑出 4 个没被占用的方向，每个写清用途、流程、权限、难度 | 第一次出某类包，优先选难度低、无新依赖的 |
+| 2. 主题色 | 4 套预设配色，已避开已有包的视觉 | 已有包多是深色时选浅色，拉开区别 |
+| 3. UI 风格 | 4 种预设风格（圆角、卡片、按钮、字体） | 避开已有包用过的风格 |
+| 4. 品牌信息 | 包名、应用名、隐私政策地址、网站地址；再问反馈邮箱和一句话介绍 | 包名上架后不能改，最好这一步就定下来；网址、邮箱没定就选「随机占位」 |
+| 5. AdMob | 应用 ID 和横幅、插屏、开屏三个广告位 | 还没在 AdMob 后台建应用就选「Google 测试 ID」，以后把正式 ID 写进 `brand.local.properties` |
+| 6. 确认 | 看一遍汇总，选「生成」或「修改某一项」 | 同领域包会多一句「和 Orbit Clean 的区别」，确认它说得通 |
+
+**关于占位值：** `com.example.*`、`example.com` 和测试广告 ID 都能打 debug 包、跑完所有验证。release 构建会被 `validateBrand` 拦下，AAB 会被 `validateUpload` 拦下，这是故意的，防止带着占位值上架。
+
+### 7.5 skill 自动完成的事（第 7–9 步）
+
+**第 7 步：生成和实现**
+1. 用 `scaffold.py` 按你的选择生成 `apps/<slug>/` 骨架：品牌配置、主题、导航、启动图标、隐私政策和提审材料模板。同领域包会多出现场选文件夹的组件，设置页也接好了 Folder access。
+2. 实现核心功能：首页、功能页、结果页，核心规则写成纯函数并配单测。广告位按广告规则放（见 [7.8](#78-skill-的硬性规则)）。
+3. 按实际功能填写隐私政策、商店长描述、提审材料（`store/submission.md`）。
+4. 在 [apps/REGISTRY.md](apps/REGISTRY.md) 登记这个包，更新模块里的 `CLAUDE.md`。
+
+**第 8 步：验证**
+1. **debug 包：** 跑单测、打 debug 包，装到模拟器上用 `emu.py` 把核心流程走一遍，确认没有崩溃。
+2. **release 包：** 用 `verify_release.py` 打 R8 混淆后的 release 包，装机后再走一遍，同时检查合并后的权限里有没有需要声明的。审核员装的就是这种包。
+3. **商店素材：** 渲染 512 图标和 1024×500 置顶大图；打开截图模式（飞行模式不出广告、状态栏固定 12:00），准备好真实内容后截 4 张截图，最后用 `check` 检查是否符合 Play 要求。
+4. 清理模拟器上为测试建的文件。
+
+**第 9 步：汇报**
+- 生成了什么、两种包分别验证了什么、哪些没验证（例如应用内评分只在从 Play 安装时才会弹）。
+- 商店素材检查结果、差异化清单逐项结论。
+- 上架前你要做的事，以及生成上传密钥的命令。
+
+**生成出来的东西：**
+
+| 路径 | 内容 |
 |---|---|
-| 1. 功能方向 | 先读 [apps/REGISTRY.md](apps/REGISTRY.md)，排除和已有包重叠的方向，从方向库里挑 4 个让你选（也可以填自己的方向） |
-| 2. 主题色 | 从 8 套预设配色里挑 4 套，避开已有包的视觉 |
-| 3. UI 风格 | 从 6 种预设风格里挑 4 种 |
-| 4. 品牌信息 | 包名、应用名、隐私政策地址、网站地址，再问反馈邮箱和一句话介绍。每项都可以选「随机占位」 |
-| 5. AdMob | 应用 ID 和横幅、插屏、开屏广告位，默认 Google 测试 ID。填了真实 ID 会写进 `brand.local.properties`，不入库 |
-| 6. 确认 | 汇总全部选择，确认后才生成 |
-| 7. 生成 | 用模板搭出 `apps/<slug>/`，然后实现核心功能（首页、功能页、结果页、广告位、评分），按广告规则放广告，填写隐私政策、商店描述和提审材料，更新登记表 |
-| 8. 验证 | 单测和 debug 包；release 包（R8 混淆后）装到模拟器上把核心流程走一遍；检查崩溃日志和合并后的权限；生成商店素材并检查 |
-| 9. 交付 | 汇报生成内容、两种包的验证结果、商店素材和提审材料、差异化清单结论、上传前你要做的事，以及生成上传密钥的命令 |
+| `apps/<slug>/brand.properties` | 包名、版本、名称、链接、测试广告 ID |
+| `apps/<slug>/brand.local.properties` | 只有你填了正式广告 ID 或 Adjust Token 才会生成，不入库 |
+| `apps/<slug>/src/main/java/...` | 品牌代码，结构见同目录的 `CLAUDE.md` |
+| `apps/<slug>/src/test/` | 核心规则的单测 |
+| `apps/<slug>/store/icon-512.png`、`feature-graphic.png`、`screenshots/` | 商店素材 |
+| `apps/<slug>/store/listing.md` | 商店页文案（名称、简短说明、长描述） |
+| `apps/<slug>/store/submission.md` | Play Console 每张表的逐项答案（数据安全、广告 ID、内容分级、目标受众、审核说明） |
+| `apps/<slug>/store/privacy-policy/index.html` | 隐私政策页面，部署到网站上用 |
+| `apps/<slug>/store/app-ads.txt` | AdMob 的 app-ads.txt，放在网站根目录 |
 
-占位值（`com.example.*`、`example.com`、测试广告 ID）能打 debug 包；release 会被 `validateBrand` 拦下，AAB 会被 `validateUpload` 拦下，这是故意的。skill 不会自动提交 git。
+### 7.6 交付后你要做的事
 
-### 7.3 方向库与预设
+1. **试用：** 让 Claude 打 debug 包并装到模拟器，或者自己装：
 
-**功能方向**（[references/directions.md](.claude/skills/new-sub-app/references/directions.md)）都尽量不需要敏感权限，优先用系统选择器（Photo Picker、SAF）：
+   ```bash
+   ./gradlew :apps:<slug>:assembleDebug
+   ```
 
-| id | 方向 |
-|---|---|
-| `private-vault` | 私密保险箱 |
-| `image-compressor` | 图片压缩与格式转换 |
-| `pdf-maker` | 图片转 PDF |
-| `exif-cleaner` | 照片隐私信息清除 |
-| `qr-toolkit` | 二维码工具 |
-| `zip-tool` | 压缩包工具 |
-| `batch-renamer` | 批量重命名 |
-| `video-compressor` | 视频压缩 |
+   ```bash
+   adb install -r apps/<slug>/build/outputs/apk/debug/<slug>-debug.apk
+   ```
+
+2. **审查和提交：** 看一遍 `apps/<slug>/` 的代码和 `store/` 下的文案，有要改的直接告诉 Claude。确认后自己提交，或者让 Claude 提交。
+3. **上架前：** 按[第 9 节](#9-上架前清单)的 C 部分做：定包名、换掉占位值、在 AdMob 建应用、部署隐私政策、生成上传密钥、打 AAB、按 `submission.md` 填 Play Console。
+
+### 7.7 方向库与预设
+
+**功能方向**（[references/directions.md](.claude/skills/new-sub-app/references/directions.md)）都尽量不需要敏感权限，分两张表：
+
+| 出包方式 | id | 方向 |
+|---|---|---|
+| 换领域 | `image-compressor` | 图片压缩与格式转换 |
+| 换领域 | `pdf-maker` | 图片转 PDF |
+| 换领域 | `exif-cleaner` | 照片隐私信息清除 |
+| 换领域 | `video-compressor` | 视频压缩 |
+| 换领域 | `qr-toolkit` | 二维码工具（已占用：qrkit） |
+| 同领域 | `batch-renamer` | 批量重命名（已占用：renamer） |
+| 同领域 | `zip-tool` | 压缩包工具 |
+| 同领域 | `private-vault` | 私密保险箱 |
+| 同领域 | `folder-backup` | 文件夹备份 |
+| 同领域 | `photo-sorter` | 照片按日期归档 |
+
+**同领域的红线**（详见方向库）：
+- 首页不能是文件浏览器或存储仪表盘。
+- 不做清理，不做通用文件管理。
+- 首屏不用 `FolderGate`（它和 Orbit Clean 的首屏一模一样），在需要文件夹的那一步现场选。
+- 视觉、商店页不能和 Orbit Clean 相似。
+- 同一个账号里同领域的包一次只上一个。
 
 **主题色**（[presets.json](.claude/skills/new-sub-app/presets.json) 的 `palettes`）：
 
 | 浅色 | 深色 |
 |---|---|
-| `ocean-light` 海盐蓝 | `midnight-dark` 午夜蓝 |
+| `ocean-light` 海盐蓝（renamer 在用） | `midnight-dark` 午夜蓝 |
 | `forest-light` 森绿 | `graphite-dark` 石墨 |
 | `sunset-light` 暖橙 | `emerald-dark` 翡翠 |
-| `lavender-light` 薰衣草 | `rose-dark` 玫瑰 |
+| `lavender-light` 薰衣草（qrkit 在用） | `rose-dark` 玫瑰 |
 
 **UI 风格**（`styles`）：
 
@@ -233,27 +321,30 @@ skill 位置：[.claude/skills/new-sub-app/](.claude/skills/new-sub-app/SKILL.md
 |---|---|---|
 | `soft-cards` | 柔和卡片 | 大圆角、浮起卡片、纯色胶囊按钮、圆形图标底座 |
 | `outline-minimal` | 线框极简 | 小圆角、只有描边、描边按钮、方形图标底座，信息密度高 |
-| `flat-material` | 扁平 Material | 中等圆角、纯色平铺卡片、纯色方角按钮 |
-| `sharp-tech` | 锐利科技 | 近直角、描边面板、纯色大写按钮、等宽字体 |
+| `flat-material` | 扁平 Material（qrkit 在用） | 中等圆角、纯色平铺卡片、纯色方角按钮 |
+| `sharp-tech` | 锐利科技（renamer 在用） | 近直角、描边面板、纯色大写按钮、等宽字体 |
 | `classic-serif` | 经典衬线 | 中小圆角、平铺卡片、描边胶囊按钮、衬线标题 |
 | `rounded-playful` | 圆润活泼 | 超大圆角、浅色填充卡片、渐变胶囊按钮 |
 
-### 7.4 skill 的硬性规则
+### 7.8 skill 的硬性规则
 
 - **只做核心功能不同的包。** 核心用途、主流程、数据来源与权限必须和登记表里的所有包都不同。换颜色和风格不能替代功能差异，否则会被 Play 判为重复内容。
+- **不做同功能复刻。** 「功能和 Orbit Clean 一样，只换界面、图标、文案」不生成：下架会记警告，累积后终止账号，同账号的已上架包会一起下架。想给已有包更多商店入口，用 Play 的自定义商店页面（同一个应用最多 50 个）。
 - **不做规避类的事。** 不为规避相似度检测做代码混淆或资源打乱，不做审核期和上线后内容不同，不提供多账号、身份或设备伪装方面的建议。
 - **不复制 Orbit Clean 的视觉标识。** 土星场景、`Orbit.kt` / `Design.kt` 原型组件、Unbounded / Sora 字体组合都不进新包。
 - **权限最小化。** 不申请所有文件访问、照片视频权限。
 - **广告规则。**
-  - 插屏只在一次核心操作的结果出来之后弹，每次最多一次。
+  - 插屏只在一次核心操作的结果出来之后弹，每次最多一次；从历史记录打开结果不弹，子页面返回不加返回插屏。
   - 不为等广告加载做假进度：本身很快的操作直接出结果。
   - 广告不挡功能按钮。
   - `AdBackBlocker` 保持关闭。
 - **不经手密钥和密码。** 上传密钥只给你生成命令，密码由你自己设。
 
-### 7.5 直接用生成脚本
+### 7.9 工具脚本
 
-skill 内部用 [scaffold.py](.claude/skills/new-sub-app/scaffold.py)，也可以手动运行（在仓库根目录）：
+skill 用到的脚本都在 `.claude/skills/new-sub-app/` 下，也可以单独运行（在仓库根目录）。
+
+#### scaffold.py：生成模块骨架
 
 ```bash
 python3 .claude/skills/new-sub-app/scaffold.py suggest <slug> "<应用名>"
@@ -264,14 +355,46 @@ python3 .claude/skills/new-sub-app/scaffold.py create <config.json>
 ```
 
 - `suggest` 打印一份随机占位配置（JSON）。
-- `create` 按配置生成 `apps/<slug>/`，并列出还要手写的占位（隐私政策正文、商店长描述）。
-- `config.json` 的字段说明见脚本文件头。
+- `create` 按配置生成 `apps/<slug>/`，并列出还要手写的占位（隐私政策正文、商店长描述、提审材料）。
+- `config.json` 的字段说明见[脚本](.claude/skills/new-sub-app/scaffold.py)文件头。两个开关：
+  - `"folderAccess": true`：同领域包。生成 `ui/folders/FolderPicker.kt`（现场选文件夹），并在设置页接好 Folder access 管理页。
+  - `adjustToken`：填了才接 Adjust（Token 写进 `brand.local.properties`）；不填时，隐私政策和提审材料里的 Adjust 内容自动去掉。
+- 生成的模块除了首页、导航、主题，还带：
+  - `data/ExternalApps.kt`：跳出应用（打开链接、拨号、分享…）前自动标记，回来不弹开屏；分享应用自己生成的文件走 `cacheDir/shared` + FileProvider，不需要存储权限。
+  - `ui/components/Forms.kt`：输入框、描边次要按钮、单选标签。
+- 生成后只是骨架，首页是占位卡片。
 
-生成后只是骨架，首页是占位卡片；核心功能、隐私政策、商店描述、提审材料还要按方向补完。
+#### emu.py：按文字操作模拟器
 
-### 7.6 商店素材脚本
+| 命令 | 作用 |
+|---|---|
+| `list` | 列出屏幕上带文字的控件和坐标 |
+| `tap "<文字>" [序号]` | 按文字点击，先精确匹配，没有再按包含匹配 |
+| `type "<输入框标签>" "<内容>"` | 点输入框、分段输入、核对内容，不对就清空重输；只能输入 ASCII |
+| `hide-keyboard` | 只在键盘弹出时收起（键盘没弹出时按返回会退出页面） |
+| `wait "<文字>" [秒]` | 等页面上出现这段文字 |
+| `scroll up\|down` | 滑动半屏并等惯性停下；列表项被底部按钮挡住时先滚出来再点 |
+| `top` / `close-ad` | 当前前台 Activity；前台是广告时关掉它 |
+| `consent [yes\|no]` | 回答 GDPR 授权表单（debug 包模拟欧洲地区，全新安装首次启动必弹） |
+| `shot <png>` | 截屏缩小，便于查看 |
 
-[store_assets.py](.claude/skills/new-sub-app/store_assets.py) 生成并检查 Play 要求的商店素材，输出到 `apps/<slug>/store/`。需要 Pillow 和 Google Chrome（用无头模式渲染）。
+#### verify_release.py：验证 release 包
+
+```bash
+python3 .claude/skills/new-sub-app/verify_release.py start <slug>
+```
+
+```bash
+python3 .claude/skills/new-sub-app/verify_release.py finish <slug>
+```
+
+- `start`：打 release APK，列出合并后的权限并标出需要声明的敏感权限，安装并冷启动。品牌信息还是占位值时，自动用 `-P` 临时把包名换成 `com.verify.<slug>`，不改文件，可以和 debug 包同时装着。
+- 两步之间用 `emu.py` 把核心流程走一遍。
+- `finish`：检查崩溃日志，卸载验证包。
+
+#### store_assets.py：商店素材
+
+需要 Pillow 和 Google Chrome（用无头模式渲染），输出到 `apps/<slug>/store/`。
 
 ```bash
 python3 .claude/skills/new-sub-app/store_assets.py graphics <slug>
@@ -282,7 +405,7 @@ python3 .claude/skills/new-sub-app/store_assets.py demo on
 ```
 
 ```bash
-python3 .claude/skills/new-sub-app/store_assets.py screenshot <slug> <name>
+python3 .claude/skills/new-sub-app/store_assets.py screenshot <slug> <name> <序号>
 ```
 
 ```bash
@@ -295,12 +418,23 @@ python3 .claude/skills/new-sub-app/store_assets.py check <slug>
 
 | 命令 | 作用 |
 |---|---|
-| `graphics` | 把自适应图标（矢量背景 + 前景）渲染成 `icon-512.png`（512×512，满版正方形，Play 会自己加圆角）；用图标渐变、应用名和一句话介绍生成 `feature-graphic.png`（1024×500，无透明通道） |
+| `graphics` | 把自适应图标渲染成 `icon-512.png`（512×512，满版正方形，Play 会自己加圆角）；用图标渐变、应用名和一句话介绍生成 `feature-graphic.png`（1024×500，无透明通道） |
 | `demo on` / `demo off` | 截图模式：打开飞行模式让广告加载不出来，状态栏固定 12:00、满电、不显示通知。打开后要冷启动应用再截；`off` 恢复网络和状态栏 |
-| `screenshot` | 等画面稳定后截模拟器当前屏幕，按比例放进 1080×1920（9:16）画布，两侧用边缘像素补齐。当前前台是广告页时拒绝截图。输出到 `screenshots/<序号>-<name>.png` |
+| `screenshot` | 等画面稳定后截当前屏幕，放进 1080×1920（9:16）画布，两侧用边缘像素补齐。序号决定上传顺序，同序号会替换旧图。前台是广告、键盘没收起时拒绝截图 |
 | `check` | 按 Play 要求检查图标、置顶大图和截图（尺寸、格式、透明通道、2–8 张、长宽比），并提示是否满足推荐位要求（至少 4 张 9:16） |
 
-脚本拦不住闪屏这类静止画面，每张截图都要打开看一眼。
+### 7.10 常见情况
+
+| 现象 | 原因和处理 |
+|---|---|
+| 全新安装后第一次打开，弹出「Welcome to Publisher Test Ads」 | GDPR 授权表单，debug 包会模拟欧洲地区。用 `emu.py consent` 回答 |
+| 生成或识别完，插屏没弹 | 距离上一次全屏广告（包括开屏）不到 30 秒，是频控，不是问题 |
+| 截图里有广告、键盘或闪屏 | 先 `demo on` 再冷启动；`emu.py hide-keyboard` 收键盘；闪屏最多停 8 秒，等首页出现再截。脚本拦得住广告和键盘，拦不住闪屏，每张截图都要打开看 |
+| 用 `emu.py type` 输入，一个字都没进去 | 输入法弹出了引导层（例如 Gboard 的「Try out your stylus」）。`type` 会自动收起它再重试 |
+| 系统文件夹选择器里某个文件夹点不到 | 被底部的「Use this folder」按钮挡住了。先 `emu.py scroll down`（或 `scroll up`）把它滚出来，不要按坐标点 |
+| 打 release 包时报 `validateBrand` 失败 | 品牌信息还是占位值。验证时用 `verify_release.py start`，它会临时换掉；上架前把 `brand.properties` 换成真实值 |
+| 打 AAB 时报 `validateUpload` 失败 | 广告 ID 还是 Google 测试 ID。把正式 ID 写进 `apps/<slug>/brand.local.properties` |
+| 想要「和 Orbit Clean 一样，只换界面」的包 | skill 会拒绝，并建议同领域换核心功能，或者给 Orbit Clean 建自定义商店页面 |
 
 ## 8. 手动新增品牌应用
 
@@ -308,7 +442,7 @@ python3 .claude/skills/new-sub-app/store_assets.py check <slug>
 
 1. 在 `apps/` 下新建目录，放 `brand.properties`、`build.gradle.kts`（只写 `namespace` 和依赖）和 `src/`。core 不用改，`settings.gradle.kts` 会自动发现。
 2. Application 里按[第 4 节](#品牌如何接入-core)接入 core。
-3. MainActivity 继承 `StartupActivity`。需要文件夹授权时，用 `FolderGate { ... }` 包住导航，设置页传 `onFolders`。
+3. MainActivity 继承 `StartupActivity`。需要文件夹授权时，用 `scaffold.py` 的 `"folderAccess": true` 生成现场选文件夹的组件；不要用 `FolderGate` 包住导航，它的首屏和 Orbit Clean 完全一样。
 4. 页面优先用 `:core:ui` 的组件和颜色 token，不写字面量颜色。
 5. 跳出 App 前（系统选择器、分享、打开文件）调用 `ExternalLaunch.mark()`，否则回来会弹热启动开屏。`:core:storage` 的 `openFile`、`shareFiles` 已经调用过。
 6. 完成一次核心操作后：先 `ReviewPrompt.recordClean` 计数，再 `maybeAsk` 请求评分；结果出来之后再展示插屏。广告位名称加到品牌的 `ui/Placements.kt`。
@@ -356,7 +490,7 @@ keytool -genkeypair -v -keystore <slug>-upload.jks -alias upload -keyalg RSA -ke
 | 方面 | 缺口 |
 |---|---|
 | 基座工程 | 没有远程开关，广告策略只能发版修改；没有崩溃和数据统计，只能看 Play Console 的 Android Vitals；单测较少，没有 CI；公共页面文字是写在 Kotlin 里的英文，没做多语言；`ReviewPrompt.recordClean`、提醒默认时刻等命名还带着清理场景 |
-| skill | 还没完整跑过一次真实出包（release 装机、商店素材、提审材料这几步已用临时包单独验证过）；启动图标和置顶大图是简单几何图形加文字，想更有辨识度需要设计；只用系统字体；方向库的可行性还没在真机上验证 |
+| skill | 已完整出过两个包（qrkit、renamer），但都只在模拟器上验证过，没在真机上跑；启动图标和置顶大图是简单几何图形加文字，想更有辨识度需要设计；只用系统字体；应用内评分只能在从 Play 安装后验证 |
 | 广告合规 | GDPR 授权查询超时 5 秒、状态仍未知时会照常请求广告，对欧洲用户有合规风险；这是 core 的行为，改它会影响 Orbit Clean，需要加一个默认关闭、新包单独打开的开关 |
 | 上架运营 | 新包的隐私政策和 app-ads.txt 部署在哪个域名还没定；版本号升级、登记表更新、隐私政策部署都靠手动 |
 | Orbit Clean | 仓库和线上的隐私政策仍写着「All files access」，与 1.0.5 起的实际权限不符（按约定不在本仓库修改，需单独决定） |

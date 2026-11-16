@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -24,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.appbase.core.ui.StartupActivity
 import com.appbase.core.ui.theme.Bg
@@ -48,12 +50,21 @@ class MainActivity : StartupActivity() {
                 Spacer(Modifier.height(20.dp))
                 Text(BuildConfig.APP_NAME, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = TextPrimary)
                 Spacer(Modifier.height(6.dp))
-                Text(BuildConfig.APP_TAGLINE, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                Text(
+                    BuildConfig.APP_TAGLINE,
+                    Modifier.padding(horizontal = 40.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary,
+                    textAlign = TextAlign.Center,
+                )
             }
         }
     }
 
-    /** 基于文件夹授权（SAF）的方向：改成 FolderGate { AppNav(...) }，并给 SettingsScreen 传 onFolders */
+    /**
+     * 不用 :core:ui 的 FolderGate 包住主界面：它的首屏和 Orbit Clean 完全一样。
+     * 需要文件夹的方向在功能那一步用 ui/folders/rememberFolderPicker 现场让用户选
+     */
     @Composable
     override fun Main() = AppNav(openedFromReminder = openedFromReminder, onReminderHandled = ::onReminderHandled)
 }

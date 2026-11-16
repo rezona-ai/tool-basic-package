@@ -36,6 +36,8 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
+    implementation(libs.kotlinx.coroutines.android)
+
     // 广告 SDK 由 :core:ads 引入；这里只放本应用核心功能需要的依赖
 
     testImplementation(libs.junit)

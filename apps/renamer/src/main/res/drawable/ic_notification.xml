@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 通知栏小图标：前景图形裁到 24dp，透明背景纯白 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="66"
+    android:viewportHeight="66">
+    <group
+        android:translateX="-21"
+        android:translateY="-21">
+        <path android:fillColor="#FFFFFFFF" android:pathData="M32,33h28a3,3 0 0 1 0,6h-28a3,3 0 0 1 0,-6z M32,47h20a3,3 0 0 1 0,6h-20a3,3 0 0 1 0,-6z M32,61h24a3,3 0 0 1 0,6h-24a3,3 0 0 1 0,-6z" />
+    <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF" android:strokeWidth="4" android:strokeLineCap="round" android:pathData="M67,29h12 M73,29v50 M67,79h12" />
+    </group>
+</vector>

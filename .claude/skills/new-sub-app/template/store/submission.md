@@ -46,19 +46,32 @@
 - **是否使用广告 ID：** Yes。Google Mobile Ads SDK 会合并 `com.google.android.gms.permission.AD_ID` 权限。
 - **用途：**
   - Advertising or marketing（AdMob）
-  - Analytics（用到 Adjust 时勾选，用于归因）
+<!--IF:ADJUST-->
+  - Analytics（Adjust 归因）
+<!--ENDIF-->
   - Fraud prevention, security, and compliance
+<!--IF:NO_ADJUST-->
+
+本包没有接 Adjust。以后接入时，把 Analytics 也勾上，并按 Adjust 的官方说明补充数据安全表单。
+<!--ENDIF-->
 
 ### 数据安全（Data safety）
-以 Google 和 Adjust 官方的申报说明为准，逐行核对：
+以官方的申报说明为准，逐行核对：
 - AdMob：https://developers.google.com/admob/android/privacy/play-data-disclosure
-- Adjust：Adjust 帮助中心里的「Google Play data safety」说明（用到 Adjust 时才需要）
+<!--IF:ADJUST-->
+- Adjust：Adjust 帮助中心里的「Google Play data safety」说明
+<!--ENDIF-->
 
 **总体问题：**
 
 | 问题 | 回答 |
 |---|---|
+<!--IF:ADJUST-->
 | 是否收集或分享所需类型的用户数据 | Yes（来自广告和归因 SDK） |
+<!--ENDIF-->
+<!--IF:NO_ADJUST-->
+| 是否收集或分享所需类型的用户数据 | Yes（来自广告 SDK） |
+<!--ENDIF-->
 | 所有用户数据是否都在传输过程中加密 | Yes（SDK 都通过 HTTPS 通信） |
 | 是否提供删除数据的方式 | 没有账号体系时选 No。用户可以在系统设置里重置或删除广告 ID |
 
@@ -69,8 +82,13 @@
 | 位置 → 大致位置（由 IP 推断） | AdMob | 按 AdMob 官方说明 | 广告、分析、欺诈预防 | 否 |
 | 应用活动 → 应用互动 | AdMob | 按 AdMob 官方说明 | 广告、分析 | 否 |
 | 应用信息和性能 → 崩溃日志、诊断信息 | AdMob | 按 AdMob 官方说明 | 分析、欺诈预防 | 否 |
+<!--IF:ADJUST-->
 | 设备或其他 ID → 广告 ID、应用组 ID | AdMob、Adjust | 按官方说明 | 广告、分析、欺诈预防 | 否 |
-| 应用活动 → 其他操作（安装来源、广告收入） | Adjust（填了 ADJUST_APP_TOKEN 才有） | 按 Adjust 官方说明 | 分析 | 否 |
+| 应用活动 → 其他操作（安装来源、广告收入） | Adjust | 按 Adjust 官方说明 | 分析 | 否 |
+<!--ENDIF-->
+<!--IF:NO_ADJUST-->
+| 设备或其他 ID → 广告 ID、应用组 ID | AdMob | 按 AdMob 官方说明 | 广告、分析、欺诈预防 | 否 |
+<!--ENDIF-->
 
 **应用自身处理的数据：**
 
