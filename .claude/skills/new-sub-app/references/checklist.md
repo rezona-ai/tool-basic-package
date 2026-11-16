@@ -11,6 +11,8 @@
 - [ ] 视觉：浅色 / 深色、主色、图标图形、字体与组件风格都和已有包不同
 - [ ] 商店页：名称、图标、截图、短描述、长描述全部重写
 - [ ] 技术身份：包名、上传密钥、AdMob 应用、隐私政策网址每个包独立
+- [ ] 不是同功能复刻：功能和任何已有包都不同，不只是换界面、图标、文案
+- [ ] 同领域包（folderAccess）：逐条对过 directions.md 的「同领域的红线」——首页不是文件浏览器或存储仪表盘、没有清理功能、没有通用文件管理、首屏没用 FolderGate、视觉和商店页不像 Orbit Clean；同账号里没有另一个未稳定的同领域包
 
 ## B. 生成后的自检（skill 自己跑完再交付）
 
@@ -18,9 +20,9 @@
 - [ ] 模拟器上：冷启动开屏（测试广告）→ 首页 → 走完一次核心流程 → 结果页插屏 → 返回 → 设置页各项可点
 - [ ] 无崩溃（`adb logcat -b crash` 为空）
 - [ ] 合并后的清单只有预期的权限：`aapt dump permissions <apk>`
-- [ ] release 包（R8 混淆后）装到模拟器，核心流程走完无崩溃（命令见 SKILL.md 第 8 步）
-- [ ] 广告规则：插屏只在结果出来之后、每次操作最多一次；没有假进度；广告不挡按钮；AdBackBlocker 保持关闭
-- [ ] 商店素材：`store_assets.py check <slug>` 通过；每张截图都看过，没有闪屏、广告、空状态
+- [ ] release 包（R8 混淆后）：`verify_release.py start <slug>` → 用 emu.py 走完核心流程 → `verify_release.py finish <slug>` 无崩溃
+- [ ] 广告规则：插屏只在结果出来之后、每次操作最多一次；从历史打开结果不弹；子页面返回不加返回插屏；没有假进度；广告不挡按钮；AdBackBlocker 保持关闭
+- [ ] 商店素材：`store_assets.py check <slug>` 通过；每张截图都看过，没有闪屏、广告、键盘、按下高亮、空状态；模拟器上的测试图片已删除
 - [ ] 隐私政策 store/privacy-policy/index.html、listing.md、submission.md 的 {{...}} 都已按实际功能填写；app-ads.txt 已生成
 - [ ] apps/REGISTRY.md 已加一行，并在「每个包的详细记录」写明广告位和权限
 - [ ] apps/<slug>/src/main/java/.../CLAUDE.md 成员清单与实际文件一致

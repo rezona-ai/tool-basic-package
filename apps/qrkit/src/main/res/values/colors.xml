@@ -1,0 +1,7 @@
+<resources>
+    <!-- 与 ui/theme/Theme.kt 的 Palette.bg 一致：冷启动窗口底色和 Compose 首帧无缝衔接 -->
+    <color name="bg">#FFF7F6FD</color>
+    <color name="icon_bg_start">#8B7CF6</color>
+    <color name="icon_bg_end">#5B4BD6</color>
+    <color name="icon_fg">#FFFFFF</color>
+</resources>

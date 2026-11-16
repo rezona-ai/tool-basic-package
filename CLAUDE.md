@@ -6,7 +6,7 @@ core/ - 马甲基座的公共模块（包名 com.appbase.core），不含任何�
 apps/ - 品牌应用模块，每个子目录一个应用（:apps:<目录名>，settings.gradle.kts 自动发现）：brand.properties（包名、版本、签名、名称、链接、广告 ID）+ src/（品牌代码与资源）+ store/（商店图标、隐私政策、app-ads.txt 模板）
 apps/orbitclean/ - Orbit Clean（土星主题文件管理 + 清理），代码在 com.orbitclean.app，地图见其 CLAUDE.md
 apps/REGISTRY.md - 已出包登记表：每个包的核心用途、主流程、权限、视觉；出新包前必读，避免重复内容
-.claude/skills/new-sub-app/ - 出马甲包的 skill："基于当前基座代码输出一个马甲包应用" → 选方向 / 主题色 / UI 风格 → 填品牌信息与 AdMob → 生成 apps/<slug> 并验证（模板、预设、scaffold.py 生成模块、store_assets.py 生成并检查商店素材，都在这里；每个包的提审材料生成在 apps/<slug>/store/submission.md）
+.claude/skills/new-sub-app/ - 出马甲包的 skill："基于当前基座代码输出一个马甲包应用" → 选方向 / 主题色 / UI 风格 → 填品牌信息与 AdMob → 生成 apps/<slug> 并验证（模板、预设、scaffold.py 生成模块、emu.py 按文字操作模拟器、verify_release.py 验证 release 包、store_assets.py 生成并检查商店素材，都在这里；每个包的提审材料生成在 apps/<slug>/store/submission.md）
 build-logic/ - 构建约定插件：appbase.core-library（core 模块）、appbase.brand-app（读取 brand.properties、签名；validateBrand 拦 release 的示例包名/网址/邮箱，validateUpload 拦 AAB 里的 Google 测试广告 ID）
 docs/ - 接入说明：Adjust、隐私政策；Play 提审：1.0.5 移除所有文件访问权限后的提交步骤与商店页（Materials_for_interrogation.md）；马甲包调研（第一版、第二版）
 </directory>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 启动图标前景：图形只画在中间 66dp 安全区内（108 画布的 21..87） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="@color/icon_fg" android:pathData="M32,33h28a3,3 0 0 1 0,6h-28a3,3 0 0 1 0,-6z M32,47h20a3,3 0 0 1 0,6h-20a3,3 0 0 1 0,-6z M32,61h24a3,3 0 0 1 0,6h-24a3,3 0 0 1 0,-6z" />
+    <path android:fillColor="#00000000" android:strokeColor="@color/icon_fg" android:strokeWidth="4" android:strokeLineCap="round" android:pathData="M67,29h12 M73,29v50 M67,79h12" />
+</vector>

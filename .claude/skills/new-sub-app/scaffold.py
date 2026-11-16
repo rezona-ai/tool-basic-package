@@ -15,6 +15,9 @@ config.json 字段：
   privacyUrl / websiteUrl / feedbackEmail
   admob           {appId, banner, interstitial, appOpen}；省略时用 Google 测试 ID。
                   brand.properties（入库）始终写测试 ID；填了真实 ID 时另写 apps/<slug>/brand.local.properties（不入库，构建时优先读它）
+  adjustToken     可选，Adjust App Token。填了才接 Adjust：写进 brand.local.properties（不入库），
+                  并保留隐私政策、提审材料里的 Adjust 内容；不填时这些内容自动去掉
+  folderAccess    可选，true 表示同领域包（基于文件夹授权）：生成 ui/folders/FolderPicker.kt，设置页加 Folder access 入口
   palette / style presets.json 里的 id
   codePackage     可选，代码包名，默认 com.appbase.<slug>
   permissions     可选，清单里要加的 <uses-permission .../> 行（字符串列表）
@@ -44,6 +47,32 @@ DEFAULT_GLYPH = (
     'android:pathData="M38,32h32a6,6 0,0 1,6 6v32a6,6 0,0 1,-6 6h-32a6,6 0,0 1,-6 -6v-32a6,6 0,0 1,6 -6z" />\n'
     '    <path android:fillColor="@color/icon_fg" android:pathData="M54,46a8,8 0,1 1,0 16a8,8 0,1 1,0 -16z" />'
 )
+
+# 模板里的条件块：单独成行的 <!--IF:名字--> … <!--ENDIF-->，条件为假时整块（含标记行）去掉
+COND = re.compile(r"^\s*<!--IF:([A-Z_]+)-->\s*$")
+ENDIF = re.compile(r"^\s*<!--ENDIF-->\s*$")
+
+
+def apply_conditions(text, flags):
+    out, stack = [], []
+    for line in text.splitlines(keepends=True):
+        m = COND.match(line)
+        if m:
+            if m.group(1) not in flags:
+                sys.exit(f"unknown condition {m.group(1)}")
+            stack.append(flags[m.group(1)])
+            continue
+        if ENDIF.match(line):
+            if not stack:
+                sys.exit("<!--ENDIF--> without <!--IF:...-->")
+            stack.pop()
+            continue
+        if all(stack):
+            out.append(line)
+    if stack:
+        sys.exit("unclosed <!--IF:...-->")
+    return "".join(out)
+
 
 SLUG = re.compile(r"^[a-z][a-z0-9]{2,29}$")
 PACKAGE = re.compile(r"^[a-zA-Z][\w]*(\.[a-zA-Z][\w]*)+$")
@@ -95,6 +124,9 @@ def create(config_path):
     if not PACKAGE.match(code_package):
         sys.exit(f"invalid codePackage: {code_package}")
     admob = {**TEST_ADMOB, **(c.get("admob") or {})}
+    adjust_token = (c.get("adjustToken") or "").strip()
+    folder = bool(c.get("folderAccess"))
+    flags = {"ADJUST": bool(adjust_token), "NO_ADJUST": not adjust_token, "FOLDER": folder, "NO_FOLDER": not folder}
     glyph = c.get("iconGlyph") or DEFAULT_GLYPH
     mono = re.sub(r'@color/icon_fg', "#FFFFFFFF", glyph)
     today = datetime.date.today()
@@ -153,7 +185,9 @@ def create(config_path):
             if name.endswith((".png", ".webp", ".jpg", ".ttf")):
                 shutil.copyfile(src, dst)
                 continue
-            text = open(src, encoding="utf-8").read()
+            text = apply_conditions(open(src, encoding="utf-8").read(), flags)
+            if not text.strip():  # 整个文件都在不成立的条件块里：不生成这个文件
+                continue
 
             def sub(m):
                 key = m.group(1)
@@ -166,16 +200,24 @@ def create(config_path):
             text = re.sub(r"\{\{([A-Z_]+)\}\}", sub, text)
             with open(dst, "w", encoding="utf-8") as f:
                 f.write(text)
+    # 条件不成立而没生成文件的目录（如未开启文件夹授权时的 ui/folders）删掉
+    for dirpath, dirnames, filenames in os.walk(target, topdown=False):
+        if not os.listdir(dirpath):
+            os.rmdir(dirpath)
     print(f"created apps/{slug} (module :apps:{slug}, code package {code_package})")
     # 真实广告 ID 不入库：只写进本应用的 brand.local.properties（已在 .gitignore 里）
     keys = {"appId": "ADMOB_APP_ID", "banner": "ADMOB_BANNER_AD_UNIT_ID",
             "interstitial": "ADMOB_INTERSTITIAL_AD_UNIT_ID", "appOpen": "ADMOB_APP_OPEN_AD_UNIT_ID"}
     real = {keys[k]: v for k, v in admob.items() if k in keys and v != TEST_ADMOB[k]}
+    if adjust_token:
+        real["ADJUST_APP_TOKEN"] = adjust_token
     if real:
         with open(os.path.join(target, "brand.local.properties"), "w", encoding="utf-8") as f:
-            f.write("# 本应用的正式广告 ID（不入库）。构建时优先于 brand.properties 和同名 Gradle 属性。\n")
+            f.write("# 本应用的正式广告 ID 与 Adjust Token（不入库）。构建时优先于 brand.properties 和同名 Gradle 属性。\n")
             f.write("".join(f"{k}={v}\n" for k, v in real.items()))
-        print(f"wrote apps/{slug}/brand.local.properties ({len(real)} real AdMob IDs, not committed)")
+        print(f"wrote apps/{slug}/brand.local.properties ({', '.join(real)}; not committed)")
+    print("Folder access: " + ("on (ui/folders/FolderPicker.kt, Settings → Folder access)" if folder else "off"))
+    print("Adjust: " + ("on (token in brand.local.properties)" if adjust_token else "off (Adjust sections removed from privacy policy and submission.md)"))
     left = []
     for dirpath, _, files in os.walk(target):
         for name in files:

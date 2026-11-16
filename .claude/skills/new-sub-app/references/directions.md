@@ -1,29 +1,55 @@
 # 马甲包功能方向库
 
-第 1 步从这里挑 4 个给用户选。挑之前先读 `apps/REGISTRY.md`：和已有包的**核心用途、主流程、数据来源与权限**任一项相同的方向不能列出。可以提出库里没有的新方向，但同样要填完下面每一栏。
+第 1 步按第 0 步选的出包方式，从对应的表里挑 4 个给用户选。挑之前先读 `apps/REGISTRY.md`：和已有包的**核心用途、主流程、数据来源与权限**任一项相同的方向不能列出（已占用的方向在表里标了「已占用」，直接跳过）。可以提出库里没有的新方向，但同样要填完表里每一栏。
+
+两种方式都必须是 L2 及以上：核心功能和所有已有包不同。同领域只是复用 Orbit Clean 那套已经过审的文件夹授权能力，**不是**复刻 Orbit Clean。
 
 优先级：不需要敏感权限 > 只需要普通运行时权限（相机、通知）> 需要 Play 权限声明的（照片和视频、所有文件访问，原则上不选）。
 
+## A. 换领域（config 不填 folderAccess）
+
+功能和 Orbit Clean 完全不同，文件只通过照片选择器、系统保存对话框进出，不用文件夹授权。
+
 | id | 方向 | 核心用途 | 主流程 | 数据来源与权限 | 和 Orbit Clean 的区别 | 实现要点 | 难度 |
 |---|---|---|---|---|---|---|---|
-| private-vault | 私密保险箱 | 把选中的文件加密存进应用，凭 PIN / 指纹打开 | 设 PIN → 选文件导入并加密 → 解锁后查看 / 导出还原 | 系统文件选择器 ACTION_OPEN_DOCUMENT（无权限）；USE_BIOMETRIC（普通权限） | 核心是隐藏和加密，不浏览、不清理 | AES-GCM + Android Keystore 密钥；文件存 app 私有目录；引导里说明卸载会丢数据；导入后由用户决定是否删除原文件（SAF） | 中 |
-| image-compressor | 图片压缩与格式转换 | 批量缩小图片体积、改尺寸、转 JPEG / WebP / PNG | 照片选择器选图 → 选质量 / 尺寸 / 格式 → 预览前后大小 → 保存到用户选的文件夹 | Photo Picker（无权限）；保存用 SAF ACTION_OPEN_DOCUMENT_TREE / CREATE_DOCUMENT | 核心是转换生成新文件，不删除、不扫描 | BitmapFactory 采样解码 + Bitmap.compress；ExifInterface 保留方向；大图分批处理防 OOM | 低 |
-| pdf-maker | 图片转 PDF | 把多张图片（拍的文档、截图）合成一个 PDF | 选图 → 拖动排序、选页面尺寸和边距 → 生成 PDF → 分享或保存 | Photo Picker（无权限）；SAF 保存 | 核心是生成文档 | android.graphics.pdf.PdfDocument；页面尺寸 A4 / Letter / 原图；生成后用 FileIntents 分享 | 低 |
-| exif-cleaner | 照片隐私信息清除 | 查看并去掉照片里的位置、设备等元数据后再分享 | 选图 → 显示 GPS / 相机 / 时间信息 → 一键清除 → 保存副本或直接分享 | Photo Picker（无权限）；SAF 保存 | 核心是隐私处理，结果是新副本 | androidx.exifinterface；清除后重新编码或复制并删除标签；地图位置只显示文字坐标 | 低 |
-| qr-toolkit | 二维码工具 | 生成文本 / 网址 / Wi-Fi / 名片二维码，并能识别图片里的二维码 | 选类型填内容 → 生成并保存 / 分享；或选图识别 → 打开链接 / 复制 | 生成无权限；识别用 Photo Picker；如加相机扫码需 CAMERA（普通运行时权限） | 完全不同的领域（L3） | 生成用 com.google.zxing:core（纯 Java）；识别图片同样用 ZXing；相机扫码可后加 CameraX | 低～中 |
-| zip-tool | 压缩包工具 | 把选中的文件打成 zip，或把 zip 解压到指定文件夹 | 选文件 / 选 zip → 选目标文件夹 → 进度 → 完成页 | SAF（无权限） | 核心是打包 / 解包；注意别做成文件浏览器 | java.util.zip；大文件流式处理；带密码 zip 需额外依赖（zip4j），先不做 | 中 |
-| batch-renamer | 批量重命名 | 按规则一次重命名一批文件（序号、日期、前后缀、替换） | 选文件夹 / 文件 → 配规则 → 预览新旧名 → 执行 → 可撤销 | SAF 文件夹授权（无权限，可复用 :core:storage） | 核心是规则批处理；与 Orbit 的单个重命名有重叠，首页和流程必须完全围绕"规则 + 预览" | DocumentsContract.renameDocument；冲突检测；保留一次撤销记录 | 中（重叠风险中） |
-| video-compressor | 视频压缩 | 降低视频分辨率 / 码率以便发送 | 选视频 → 选目标大小或清晰度 → 转码进度 → 保存 / 分享 | Photo Picker（无权限）；SAF 保存 | 核心是转码 | androidx.media3:media3-transformer；前台转码，退出前提示；大视频耗时长 | 高 |
+| image-compressor | 图片压缩与格式转换 | 批量缩小图片体积、改尺寸、转 JPEG / WebP / PNG | 照片选择器选图 → 选质量 / 尺寸 / 格式 → 预览前后大小 → 保存或分享 | Photo Picker（无权限）；保存用 CREATE_DOCUMENT；分享用模板的 ExternalApps.shareFile | 核心是转换生成新文件，不删除、不扫描 | BitmapFactory 采样解码 + Bitmap.compress；ExifInterface 保留方向；大图分批处理防 OOM | 低 |
+| pdf-maker | 图片转 PDF | 把多张图片（拍的文档、截图）合成一个 PDF | 选图 → 拖动排序、选页面尺寸和边距 → 生成 PDF → 分享或保存 | Photo Picker（无权限）；CREATE_DOCUMENT 保存；ExternalApps.shareFile 分享 | 核心是生成文档 | android.graphics.pdf.PdfDocument；页面尺寸 A4 / Letter / 原图 | 低 |
+| exif-cleaner | 照片隐私信息清除 | 查看并去掉照片里的位置、设备等元数据后再分享 | 选图 → 显示 GPS / 相机 / 时间信息 → 一键清除 → 保存副本或直接分享 | Photo Picker（无权限）；CREATE_DOCUMENT 保存 | 核心是隐私处理，结果是新副本 | androidx.exifinterface；清除后重新编码或复制并删除标签；地图位置只显示文字坐标 | 低 |
+| video-compressor | 视频压缩 | 降低视频分辨率 / 码率以便发送 | 选视频 → 选目标大小或清晰度 → 转码进度 → 保存 / 分享 | Photo Picker（无权限）；CREATE_DOCUMENT 保存 | 核心是转码 | androidx.media3:media3-transformer；前台转码，退出前提示；大视频耗时长 | 高 |
+| qr-toolkit | 二维码工具（**已占用：qrkit**） | 生成二维码，识别图片里的二维码 | — | — | — | — | — |
+
+## B. 同领域（config 填 `"folderAccess": true`）
+
+和 Orbit Clean 同属「手机文件工具」，复用 `:core:storage` 的文件夹授权、文件读写（listDir / rename / transfer / createFolder / openInputStream…）和设置页的 Folder access 管理页，所以比换领域快。核心功能必须是 Orbit Clean 没有的。
+
+| id | 方向 | 核心用途 | 主流程 | 数据来源与权限 | 和 Orbit Clean 的区别 | 实现要点 | 难度 |
+|---|---|---|---|---|---|---|---|
+| batch-renamer | 批量重命名 | 按规则一次重命名一批文件（序号、日期、前后缀、查找替换、大小写） | 首页选规则模板 → 现场选文件夹 → 勾选文件 → 预览新旧名对照 → 执行 → 可撤销上一次 | 文件夹授权（无权限） | 核心是规则批处理 + 预览 + 撤销；Orbit 只有单个文件改名。首页是规则模板，不是文件列表 | 规则做成纯函数（有单测）；FileStore.rename；冲突和非法字符检测；撤销记录存本机 | 中 |
+| zip-tool | 压缩包工具 | 把选中的文件打成 zip，或把 zip 解压到指定文件夹 | 首页两个入口（打包 / 解压）→ 现场选文件或 zip → 选目标文件夹 → 真实进度 → 完成页 | 文件夹授权（无权限）；选单个 zip 可用 OPEN_DOCUMENT | 核心是打包 / 解包，结果是新文件；首页不是文件浏览器 | java.util.zip 流式读写（openInputStream / 写入目标文件夹）；带密码 zip 需 zip4j，先不做 | 中 |
+| private-vault | 私密保险箱 | 把选中的文件加密移入应用，凭 PIN / 指纹打开 | 设 PIN → 现场选文件夹 → 勾选文件导入加密（可选删除原文件）→ 解锁后查看 / 导出还原到选定文件夹 | 文件夹授权（无权限）；USE_BIOMETRIC（普通权限） | 核心是隐藏和加密；Orbit 是管理和清理 | AES-GCM + Android Keystore；密文存应用私有目录；引导里说明卸载会丢数据 | 中 |
+| folder-backup | 文件夹备份 | 把一个文件夹（如 DCIM、Documents）增量备份到另一个文件夹（如 U 盘、SD 卡、另一目录） | 新建备份任务：选来源、选目标 → 预览要复制的新文件 / 改动文件 → 执行（真实进度）→ 完成页；任务列表可再次运行 | 文件夹授权（无权限）；按需 POST_NOTIFICATIONS 做到期提醒 | 核心是两个位置之间的增量同步；Orbit 不做备份 | 按路径 + 大小 + 修改时间比对（纯函数，有单测）；FileStore.transfer 复制；任务配置存本机 | 中 |
+| photo-sorter | 照片按日期归档 | 把一个文件夹里的照片、视频按拍摄年月移进「年/月」子文件夹 | 现场选文件夹 → 选归档规则（年/月、年-月、按天）→ 预览会移动哪些文件 → 执行 → 可撤销 | 文件夹授权（无权限） | 核心是按规则批量归档；Orbit 不做整理，也不读拍摄时间 | ExifInterface 读拍摄时间（读不到用修改时间）；FileStore.createFolder + transfer(move)；撤销记录存本机 | 中 |
+
+### 同领域的红线（任何一条碰到就换方向或改设计）
+
+- **首页**不能是文件浏览器、存储用量仪表盘、按类型浏览，也不能是授权文件夹列表。首页围绕新核心功能组织（规则模板、任务列表、两个入口…）。
+- **不做清理**：不扫描冗余、大文件、重复文件，不做「一键清理」，不出现 clean / cleaner / junk / boost 字样。
+- **不做通用文件管理**：不提供浏览任意目录并复制、移动、删除、单个改名的通用操作，那是 Orbit Clean 的核心。核心功能需要的那一步操作（比如归档时的移动）可以做。
+- **首屏不用 FolderGate**：它和 Orbit Clean 的首屏完全一样。在功能需要文件夹的那一步用 `ui/folders/rememberFolderPicker` 现场选；已授权的文件夹在设置页 Folder access 里管理（scaffold 已接好）。
+- **视觉**：不用土星场景、Orbit.kt / Design.kt、Unbounded / Sora 字体；配色避开深空深色 + 金色 / 青色。
+- **商店页**：名称、图标、简短说明、截图不能和 Orbit Clean 相似，不用 file manager / cleaner 关键词。
+- **同一个开发者账号里同领域的包一次只上一个**，等它过审稳定后再出下一个。
 
 ## 不要列出的方向
 
-- 与 apps/REGISTRY.md「已占用的方向」重叠的：文件管理、存储清理、按类型浏览、相似照片清理、存储分析
+- 与 apps/REGISTRY.md「已占用的方向」重叠的：文件管理、存储清理、按类型浏览、相似照片清理、存储分析、二维码
 - 需要所有文件访问或照片视频权限声明才能成立的（如全盘扫描、相册回收站）
 - "手机加速 / 电池优化 / 清理内存"之类做不到也说不清的功能（误导性声明）
 - 模仿某个知名应用名称或界面的
+- 和已有包功能相同、只换界面 / 图标 / 文案的（L0 / L1）：会被判重复内容，还会连累同账号的已上架包
 
 ## 每个方向落地时都要有
 
 - **独立的首页**：首页信息组织围绕自己的核心功能，不复用 Orbit Clean 的页面结构或土星场景
 - **完成页 / 结果页**：插屏和应用内评分都放在"做完一件事"之后（ReviewPrompt.recordClean + maybeAsk 可直接复用，计数含义改成"完成一次核心操作"）
-- **至少一个纯函数单测**：核心规则（命名规则、尺寸计算、加密格式等）
+- **至少一个纯函数单测**：核心规则（命名规则、比对规则、日期归档、加密格式等）

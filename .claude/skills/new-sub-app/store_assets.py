@@ -5,7 +5,9 @@
 用法（在仓库根目录运行；需要 Pillow 和 Google Chrome）：
   python3 .claude/skills/new-sub-app/store_assets.py graphics <slug>          # 应用图标 icon-512.png + 置顶大图 feature-graphic.png
   python3 .claude/skills/new-sub-app/store_assets.py demo on|off              # 截图模式：飞行模式（不出广告）+ 状态栏演示模式（固定时间、满电、无通知）
-  python3 .claude/skills/new-sub-app/store_assets.py screenshot <slug> <name> # 截当前模拟器屏幕 → screenshots/<序号>-<name>.png（1080×1920）
+  python3 .claude/skills/new-sub-app/store_assets.py screenshot <slug> <name> [序号]
+                                    # 截当前模拟器屏幕 → screenshots/<序号>-<name>.png（1080×1920）；
+                                    # 给了序号就写成这个序号（替换同序号的旧图），截图顺序可以和上传顺序不同
   python3 .claude/skills/new-sub-app/store_assets.py check <slug>             # 按 Play 要求检查全部素材
 
 素材来源：图标和大图由 src/main/res 里的自适应图标（ic_launcher_background / ic_launcher_foreground 矢量图）和
@@ -206,14 +208,16 @@ def graphics(slug):
     # 置顶大图：图标渐变铺底，左侧图标、右侧应用名和一句话介绍；主体留在中间安全区，边缘不放关键内容
     start, end = css_color(palette["icon_bg_start"], palette), css_color(palette["icon_bg_end"], palette)
     fg = css_color(palette["icon_fg"], palette)
-    name, tagline = html.escape(props.get("APP_NAME", slug)), html.escape(props.get("APP_TAGLINE", ""))
+    # 连字符换成不断行的连字符（U+2011），避免 Wi-Fi 这类词被拆到两行
+    name = html.escape(props.get("APP_NAME", slug)).replace("-", "‑")
+    tagline = html.escape(props.get("APP_TAGLINE", "")).replace("-", "‑")
     css = f"""
 body{{background:linear-gradient(135deg,{start},{end});font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:{fg}}}
 .wrap{{position:absolute;inset:0 96px;display:flex;align-items:center;gap:56px}}
 .icon{{width:248px;height:248px;flex:none;border-radius:56px;overflow:hidden;box-shadow:0 18px 48px rgba(0,0,0,.28)}}
 .icon svg{{display:block}}
 h1{{margin:0 0 18px;font-size:68px;line-height:1.05;font-weight:800;letter-spacing:-1px}}
-p{{margin:0;font-size:30px;line-height:1.3;opacity:.86;max-width:520px}}"""
+p{{margin:0;font-size:30px;line-height:1.3;opacity:.86;max-width:520px;text-wrap:balance}}"""
     small_icon = icon_svg(d, palette, 'width="248" height="248"')
     body = f'<div class="wrap"><div class="icon">{small_icon}</div><div><h1>{name}</h1><p>{tagline}</p></div></div>'
     feature = os.path.join(store, "feature-graphic.png")
@@ -255,7 +259,7 @@ def demo(state):
         print("screenshot mode off")
 
 
-def screenshot(slug, name):
+def screenshot(slug, name, index=None):
     """截当前屏幕，按比例缩放后居中放进 1080×1920（9:16）画布，两侧用截图顶部的底色补齐，满足 Play 的长宽比要求"""
     d = app_dir(slug)
     out_dir = os.path.join(d, "store", "screenshots")
@@ -267,6 +271,9 @@ def screenshot(slug, name):
     resumed = next((l for l in top.splitlines() if "topResumedActivity" in l or "mResumedActivity" in l), "")
     if re.search(r"AdActivity|AppLovinFullscreenActivity|MaxFullscreen", resumed):
         sys.exit("当前前台是广告页，先关掉广告再截图：" + resumed.strip())
+    # 键盘挡住一半页面的截图不能用；收键盘用 emu.py hide-keyboard（键盘没弹出时按返回会退出页面）
+    if "mInputShown=true" in adb("shell", "dumpsys", "input_method"):
+        sys.exit("键盘还开着，先运行 emu.py hide-keyboard 再截图")
     # 等画面稳定：连续两次截屏完全一样才用，避开页面切换、加载动画的中间帧
     shot, previous = None, None
     for _ in range(12):
@@ -287,7 +294,11 @@ def screenshot(slug, name):
         right = SHOT_W - x - resized.width
         canvas.paste(resized.crop((resized.width - 1, 0, resized.width, resized.height)).resize((right, resized.height)), (x + resized.width, y))
     canvas.paste(resized, (x, y))
-    index = len([f for f in os.listdir(out_dir) if f.endswith(".png")]) + 1
+    if index is None:
+        index = len([f for f in os.listdir(out_dir) if f.endswith(".png")]) + 1
+    for old in os.listdir(out_dir):
+        if old.startswith(f"{index:02d}-"):
+            os.remove(os.path.join(out_dir, old))
     out = os.path.join(out_dir, f"{index:02d}-{name}.png")
     canvas.save(out)
     print(f"wrote {os.path.relpath(out, ROOT)} (from {shot.width}×{shot.height})")
@@ -357,8 +368,8 @@ if __name__ == "__main__":
         graphics(a[1])
     elif len(a) == 2 and a[0] == "demo" and a[1] in ("on", "off"):
         demo(a[1])
-    elif len(a) == 3 and a[0] == "screenshot":
-        screenshot(a[1], a[2])
+    elif len(a) in (3, 4) and a[0] == "screenshot":
+        screenshot(a[1], a[2], int(a[3]) if len(a) == 4 else None)
     elif len(a) == 2 and a[0] == "check":
         check(a[1])
     else:
