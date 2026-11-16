@@ -1,0 +1,11 @@
+# 账号配置模板：复制成 accounts/<账号>/account.properties 再填（不入库）。说明见 accounts/README.md
+# Play 管理中心里的开发者名称
+DEVELOPER_NAME=
+# 开发者网站根地址（https://，以 / 结尾）；app-ads.txt 放在它的根目录
+WEBSITE_ROOT=
+# 联系邮箱（本账号的包没单独填 FEEDBACK_EMAIL 时用它）
+FEEDBACK_EMAIL=
+# AdMob 发布商 ID：pub- + 16 位数字（AdMob 后台“设置 → 账号信息”）
+ADMOB_PUBLISHER_ID=
+# 上传密钥配置文件（项目根目录，不入库），例如 keystore-<账号>.properties
+SIGNING_PROPERTIES=

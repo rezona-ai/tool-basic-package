@@ -77,10 +77,14 @@ apps/                     品牌应用，每个子目录一个模块（:apps:<�
   qrkit/                  QR Atelier：二维码工具（skill 生成，未上架）
   renamer/                Namewise：批量重命名（skill 生成，同领域，未上架）
   REGISTRY.md             已出包登记表：出新包前必读
+features/
+  cleaner/                共享功能层：清理 + 文件管理（从 Orbit Clean 复制、去掉品牌值），复刻包依赖它
+accounts/                 Play 账号配置（不入库，只有 README 和模板入库），复刻包用
 build-logic/              构建约定插件
-  convention/             appbase.core-library、appbase.brand-app（BrandAppPlugin.kt）
-.claude/skills/new-sub-app/  出马甲包的 skill（模板、预设、scaffold.py 生成模块、emu.py 操作模拟器、
-                             verify_release.py 验证 release 包、store_assets.py 商店素材）
+  convention/             appbase.core-library、appbase.brand-app（BrandAppPlugin.kt）、账号串号校验（AccountGuard.kt）
+.claude/skills/new-sub-app/  出马甲包的 skill（template/ 模板、clone/ 复刻模板与变体、预设、scaffold.py 生成模块、
+                             account.py 账号与账号网站、emu.py 操作模拟器、verify_release.py 验证 release 包、
+                             store_assets.py 商店素材）
 docs/                     接入说明、提审材料、马甲包调研
 gradle/libs.versions.toml 依赖版本
 ```
@@ -141,8 +145,10 @@ gradle/libs.versions.toml 依赖版本
 | 1（最高） | `apps/<品牌>/brand.local.properties` | 否 | 只对这一个包 | 正式的 AdMob / AppLovin / Adjust ID |
 | 2 | 同名 Gradle 属性（`-P` 或 `~/.gradle/gradle.properties`） | 否 | **所有包共用** | 本机通用设置，例如 `ADMOB_TEST_DEVICE_IDS` |
 | 3 | `apps/<品牌>/brand.properties` | 是 | 只对这一个包 | 包名、版本、名称、链接、测试广告 ID |
+| 4（最低） | `accounts/<ACCOUNT>/account.properties` | 否 | 同一账号的包 | 只有 `SIGNING_PROPERTIES`、`FEEDBACK_EMAIL` 两项，在包自己没填时用账号的；只有填了 `ACCOUNT` 的包会读 |
 
 - `brand.local.properties` 不存在或某一项留空时，就往下一级取。
+- 没填 `ACCOUNT` 的包（Orbit Clean、QR Atelier、Namewise）只用前三级，构建结果和加账号功能之前完全一样。
 - **不要把正式广告 ID 放进 Gradle 属性**：所有包都会读到同一套，会串号。打 AAB 时如果发现广告 ID 来自 Gradle 属性，构建会打出警告。
 
 ### 6.2 brand.properties 字段
@@ -162,6 +168,8 @@ gradle/libs.versions.toml 依赖版本
 | `ADMOB_TEST_DEVICE_IDS` | 否 | 只收测试广告的设备 ID，逗号分隔，建议放 `~/.gradle/gradle.properties` |
 | `APPLOVIN_SDK_KEY`、`MAX_*_AD_UNIT_ID` | 否 | AppLovin MAX；保持 `YOUR_` 前缀时不初始化，直接用 AdMob |
 | `ADJUST_APP_TOKEN` | 否 | Adjust App Token，留空不初始化 |
+| `ACCOUNT` | 复刻包必填 | 所属 Play 账号（`accounts/<ACCOUNT>/`）；填了才读账号默认值、做账号串号校验 |
+| `CLONE_OF` / `CLONE_VARIANTS` | 复刻包自动写 | 母包和变体组合；构建不读，scaffold.py 用来拦重复 |
 
 ### 6.3 构建校验
 
@@ -169,6 +177,7 @@ gradle/libs.versions.toml 依赖版本
 |---|---|---|
 | `validateBrand` | 所有 release 构建前 | 包名是示例或不合法；隐私地址、网站地址不是真实的 `https://`；反馈邮箱无效或是 example.com |
 | `validateUpload` | `bundleRelease` 前 | AdMob 应用 ID 或任一广告位为空、或仍是 Google 测试 ID |
+| 账号串号校验（AccountGuard） | `bundleRelease` 前，只对填了 `ACCOUNT` 的包 | 账号配置缺失；广告 ID 不属于本账号的发布商，或来自所有包共用的 Gradle 属性；没有上传密钥；隐私政策、网站不在本账号域名下；`store/app-ads.txt` 不是本账号的发布商；取值或 `src/main`、`store/` 的文字里出现别的账号或不属于本账号的包的名称、包名、域名、邮箱、发布商 ID。详见 [accounts/README.md](accounts/README.md) |
 
 ### 6.4 品牌目录里还有什么
 
@@ -224,7 +233,7 @@ adb devices
 
 | 步骤 | 你要选什么 | 建议 |
 |---|---|---|
-| 0. 出包方式 | **换领域**：功能和已有包完全不同，文件只通过照片选择器、系统保存对话框进出。**同领域**：和 Orbit Clean 同属文件工具，复用它的文件夹授权能力，出包更快，但核心功能必须不同 | 两种都可以；同领域的包在同一个账号里一次只上一个 |
+| 0. 出包方式 | **换领域**：功能和已有包完全不同，文件只通过照片选择器、系统保存对话框进出。**同领域**：和 Orbit Clean 同属文件工具，复用它的文件夹授权能力，出包更快，但核心功能必须不同。**复刻（L0/L1）**：功能和 Orbit Clean 相同，换皮肤、交互、文案，放到另一个 Play 账号，流程见 [7.11](#711-复刻模式l0--l1) | 同领域的包在同一个账号里一次只上一个；复刻包每个账号同一母包只放一个 |
 | 1. 功能方向 | skill 读 [apps/REGISTRY.md](apps/REGISTRY.md) 后，从方向库对应的表里挑出 4 个没被占用的方向，每个写清用途、流程、权限、难度 | 第一次出某类包，优先选难度低、无新依赖的 |
 | 2. 主题色 | 4 套预设配色，已避开已有包的视觉 | 已有包多是深色时选浅色，拉开区别 |
 | 3. UI 风格 | 4 种预设风格（圆角、卡片、按钮、字体） | 避开已有包用过的风格 |
@@ -328,10 +337,10 @@ adb devices
 
 ### 7.8 skill 的硬性规则
 
-- **只做核心功能不同的包。** 核心用途、主流程、数据来源与权限必须和登记表里的所有包都不同。换颜色和风格不能替代功能差异，否则会被 Play 判为重复内容。
-- **不做同功能复刻。** 「功能和 Orbit Clean 一样，只换界面、图标、文案」不生成：下架会记警告，累积后终止账号，同账号的已上架包会一起下架。想给已有包更多商店入口，用 Play 的自定义商店页面（同一个应用最多 50 个）。
-- **不做规避类的事。** 不为规避相似度检测做代码混淆或资源打乱，不做审核期和上线后内容不同，不提供多账号、身份或设备伪装方面的建议。
-- **不复制 Orbit Clean 的视觉标识。** 土星场景、`Orbit.kt` / `Design.kt` 原型组件、Unbounded / Sora 字体组合都不进新包。
+- **换领域、同领域只做核心功能不同的包。** 核心用途、主流程、数据来源与权限必须和登记表里的所有包都不同。换颜色和风格不能替代功能差异，否则会被 Play 判为重复内容。
+- **同功能复刻只走复刻模式。** 前提是各 Play 账号互相隔离、AdMob 不共用：复刻包必须填 `ACCOUNT`，不能和母包同账号，同一账号同一母包只一个；账号之间的发布商、签名、网站、邮箱不串（打 AAB 时 AccountGuard 校验）。
+- **不做规避类的事。** 不为规避相似度检测做代码混淆或资源打乱，不做审核期和上线后内容不同，不提供冒用身份、买卖账号、设备或网络伪装、躲避账号关联检测方面的做法。
+- **不复制 Orbit Clean 的视觉标识。** 土星场景、`Orbit.kt` / `Design.kt` 原型组件、Unbounded / Sora 字体组合都不进新包（复刻包也一样）。
 - **权限最小化。** 不申请所有文件访问、照片视频权限。
 - **广告规则。**
   - 插屏只在一次核心操作的结果出来之后弹，每次最多一次；从历史记录打开结果不弹，子页面返回不加返回插屏。
@@ -359,6 +368,7 @@ python3 .claude/skills/new-sub-app/scaffold.py create <config.json>
 - `config.json` 的字段说明见[脚本](.claude/skills/new-sub-app/scaffold.py)文件头。两个开关：
   - `"folderAccess": true`：同领域包。生成 `ui/folders/FolderPicker.kt`（现场选文件夹），并在设置页接好 Folder access 管理页。
   - `adjustToken`：填了才接 Adjust（Token 写进 `brand.local.properties`）；不填时，隐私政策和提审材料里的 Adjust 内容自动去掉。
+  - 复刻模式另加 `"mode": "clone"`、`parent`、`account`、`variants`：先铺 `template/`，再用 `clone/` 和选中的 `clone/variants/<轴>/<取值>/` 覆盖；会拦同账号同母包、变体差异不足、和已有复刻同组合（见 7.11）。
 - 生成的模块除了首页、导航、主题，还带：
   - `data/ExternalApps.kt`：跳出应用（打开链接、拨号、分享…）前自动标记，回来不弹开屏；分享应用自己生成的文件走 `cacheDir/shared` + FileProvider，不需要存储权限。
   - `ui/components/Forms.kt`：输入框、描边次要按钮、单选标签。
@@ -434,7 +444,55 @@ python3 .claude/skills/new-sub-app/store_assets.py check <slug>
 | 系统文件夹选择器里某个文件夹点不到 | 被底部的「Use this folder」按钮挡住了。先 `emu.py scroll down`（或 `scroll up`）把它滚出来，不要按坐标点 |
 | 打 release 包时报 `validateBrand` 失败 | 品牌信息还是占位值。验证时用 `verify_release.py start`，它会临时换掉；上架前把 `brand.properties` 换成真实值 |
 | 打 AAB 时报 `validateUpload` 失败 | 广告 ID 还是 Google 测试 ID。把正式 ID 写进 `apps/<slug>/brand.local.properties` |
-| 想要「和 Orbit Clean 一样，只换界面」的包 | skill 会拒绝，并建议同领域换核心功能，或者给 Orbit Clean 建自定义商店页面 |
+| 想要「和 Orbit Clean 一样，只换界面」的包 | 第 0 步选「复刻」，放到另一个 Play 账号，见 7.11 |
+| 复刻时 scaffold.py 报 `already has a clone of orbitclean` | 这个账号里已经有一个 Orbit Clean 的复刻包，换一个账号 |
+| 复刻时 scaffold.py 报 `only N axes differ` 或 `same variants` | 变体和母包太像，或和已有复刻包同一组合，换几个轴 |
+| 复刻包打 AAB 时报 `(ACCOUNT=...)` 开头的错误 | 账号串号校验没过，按提示改 `brand.local.properties`、`store/app-ads.txt` 或去掉源码里别的包的名称 |
+| 电脑上同时连着真机和模拟器 | 先 `export ANDROID_SERIAL=emulator-5554`，否则 adb 会报 more than one device，脚本也可能操作到真机 |
+
+### 7.11 复刻模式（L0 / L1）
+
+**前提：** 各 Play 账号互相隔离、AdMob 不共用。Play 会把同一开发者（及关联账号）的重复应用判成垃圾应用，所以复刻包只能放到别的账号，并且账号之间的配置一个都不能串。
+
+**结构：**
+
+```
+features/cleaner/                 功能层：从 Orbit Clean 复制的扫描、删除、文件浏览、提醒规则、页面状态（不含品牌值）
+.claude/skills/new-sub-app/clone/ 复刻模板：公共页面（类别列表、清理中、文件页、设备信息、路由、文案 Copy.kt）
+  variants/<轴>/<取值>/            各轴的页面变体，scaffold.py 按选择覆盖进去
+accounts/<账号>/                  账号配置和账号网站（不入库）
+```
+
+**六个变体轴**（[presets.json](.claude/skills/new-sub-app/presets.json) 的 `cloneVariants`；母包 Orbit Clean 是 saturn / tabs / dashboard / stepwise / list / summary）：
+
+| 轴 | 取值 |
+|---|---|
+| 场景 scene | `ring` 环形进度、`particles` 粒子云、`stack` 分层柱（不能用母包的 saturn） |
+| 导航 nav | `tabs` 底部三标签、`hub` 单页入口 |
+| 首页 home | `dashboard` 仪表盘、`grid` 宫格 |
+| 清理流程 clean | `stepwise` 逐类勾选删除、`onetap` 一键清理全部勾选 |
+| 文件页 browser | `list` 列表、`grid` 网格 |
+| 完成页 done | `summary` 汇总、`checklist` 清单 |
+
+至少 3 个轴要和母包不同；同一母包的复刻包之间组合不能完全相同。配色、风格、图标、全部文案（`data/Copy.kt`、页面文字、商店页、隐私政策）每个包重做。
+
+**流程：** 第 0 步选「复刻」后，skill 依次问：所属账号（没有就新建）→ 变体组合 → 主题色 → UI 风格 → 品牌信息（默认用账号的网站和邮箱）→ AdMob（发布商必须是本账号的）→ 确认。生成后重写文案、跑验证、用 `account.py site <账号>` 生成本账号的网站文件。
+
+**账号脚本：**
+
+```bash
+python3 .claude/skills/new-sub-app/account.py init <账号>
+```
+
+```bash
+python3 .claude/skills/new-sub-app/account.py list
+```
+
+```bash
+python3 .claude/skills/new-sub-app/account.py site <账号>
+```
+
+`init` 从模板建账号配置，`list` 列出账号、配置缺什么、每个账号下的包，`site` 生成 `accounts/<账号>/site/`（根目录 app-ads.txt + 每个包的隐私政策），整个目录上传到账号的 `WEBSITE_ROOT`。字段说明见 [accounts/README.md](accounts/README.md)。
 
 ## 8. 手动新增品牌应用
 
@@ -478,7 +536,8 @@ keytool -genkeypair -v -keystore <slug>-upload.jks -alias upload -keyalg RSA -ke
 ## 10. 约定与禁忌
 
 - **Orbit Clean 只读。** 已上架，`apps/orbitclean/` 一律不改。基座改动后要确认 Orbit Clean 的构建产物没有变化。
-- **core 不含品牌值。** 不放品牌名称、颜色、文案、链接、广告 ID，也不依赖品牌代码。品牌差异只放在 `apps/<品牌>/` 下。
+- **core、features 不含品牌值。** 不放品牌名称、颜色、文案、链接、广告 ID，也不依赖品牌代码。品牌差异只放在 `apps/<品牌>/` 下。改 `features/cleaner` 会影响所有复刻包，改完跑它的单测和至少一个复刻包的编译。
+- **账号之间不串。** 复刻包的发布商、签名、网站、邮箱都用自己账号的；`accounts/` 下除了说明和模板都不入库。
 - **core 模块依赖只能单向**：`common ← ads、storage ← ui`。新增公共能力时先判断它属于哪个模块。
 - **不申请存储权限。** 只读写用户用系统文件夹选择器（SAF）授权的文件夹。
 - **密钥不入库。** `*.jks`、`keystore*.properties`、`brand.local.properties`、`local.properties` 都在 `.gitignore` 里。
@@ -490,6 +549,7 @@ keytool -genkeypair -v -keystore <slug>-upload.jks -alias upload -keyalg RSA -ke
 | 方面 | 缺口 |
 |---|---|
 | 基座工程 | 没有远程开关，广告策略只能发版修改；没有崩溃和数据统计，只能看 Play Console 的 Android Vitals；单测较少，没有 CI；公共页面文字是写在 Kotlin 里的英文，没做多语言；`ReviewPrompt.recordClean`、提醒默认时刻等命名还带着清理场景 |
+| 复刻模式 | 只支持 Orbit Clean 一个母包；每轴 2～3 种变体，组合有限；还没出过真实的复刻包，三个验证用的临时包只在模拟器上跑过 debug，release 只验证了能打出来；复刻包和母包是同一套功能代码，差异只在界面、文案和账号上 |
 | skill | 已完整出过两个包（qrkit、renamer），但都只在模拟器上验证过，没在真机上跑；启动图标和置顶大图是简单几何图形加文字，想更有辨识度需要设计；只用系统字体；应用内评分只能在从 Play 安装后验证 |
 | 广告合规 | GDPR 授权查询超时 5 秒、状态仍未知时会照常请求广告，对欧洲用户有合规风险；这是 core 的行为，改它会影响 Orbit Clean，需要加一个默认关闭、新包单独打开的开关 |
 | 上架运营 | 新包的隐私政策和 app-ads.txt 部署在哪个域名还没定；版本号升级、登记表更新、隐私政策部署都靠手动 |
@@ -501,10 +561,12 @@ keytool -genkeypair -v -keystore <slug>-upload.jks -alias upload -keyalg RSA -ke
 |---|---|
 | [CLAUDE.md](CLAUDE.md) | 仓库总地图（Claude Code 读取） |
 | [core/CLAUDE.md](core/CLAUDE.md) | core 四个模块的地图与依赖规则 |
-| [apps/REGISTRY.md](apps/REGISTRY.md) | 已出包登记表：用途、主流程、权限、视觉、已占用方向 |
+| [apps/REGISTRY.md](apps/REGISTRY.md) | 已出包登记表：用途、主流程、权限、视觉、已占用方向、复刻包的账号与变体 |
+| [features/cleaner/CLAUDE.md](features/cleaner/CLAUDE.md) | 共享功能层（清理 + 文件管理）的地图 |
+| [accounts/README.md](accounts/README.md) | Play 账号配置字段、账号串号校验、账号脚本 |
 | [docs/ADJUST_INTEGRATION.md](docs/ADJUST_INTEGRATION.md) | Adjust 归因、广告收入上报、DMA 授权信号的接入 |
 | [docs/PRIVACY_POLICY_SETUP.md](docs/PRIVACY_POLICY_SETUP.md) | 隐私政策页面的部署 |
 | [docs/Materials_for_interrogation.md](docs/Materials_for_interrogation.md) | Play 提审：移除所有文件访问权限后的提交步骤与商店页 |
 | [docs/马甲包调研文档-第一版.md](docs/马甲包调研文档-第一版.md) | 马甲包调研（含差异化分级） |
-| [docs/马甲包调研文档-第二版.md](docs/马甲包调研文档-第二版.md) | 马甲包调研（第二版结论） |
+| [docs/马甲包调研文档-第二版.md](docs/马甲包调研文档-第二版.md) | 马甲包调研（第二版结论，文末附 v3 决策：复刻模式） |
 | [.claude/skills/new-sub-app/SKILL.md](.claude/skills/new-sub-app/SKILL.md) | 出马甲包 skill 的完整步骤 |

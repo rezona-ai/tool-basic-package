@@ -5,9 +5,11 @@ Kotlin 2.2.21 + Jetpack Compose (BOM 2025.10.01) + Material3 + AGSL RuntimeShade
 core/ - 马甲基座的公共模块（包名 com.appbase.core），不含任何品牌值，见 core/CLAUDE.md：common（CoreServices/CoreConfig、格式化、评分、提醒框架）← ads（广告、频控、Adjust）/ storage（SAF 文件读写）← ui（主题骨架、通用组件、设置页、启动流程）
 apps/ - 品牌应用模块，每个子目录一个应用（:apps:<目录名>，settings.gradle.kts 自动发现）：brand.properties（包名、版本、签名、名称、链接、广告 ID）+ src/（品牌代码与资源）+ store/（商店图标、隐私政策、app-ads.txt 模板）
 apps/orbitclean/ - Orbit Clean（土星主题文件管理 + 清理），代码在 com.orbitclean.app，地图见其 CLAUDE.md
-apps/REGISTRY.md - 已出包登记表：每个包的核心用途、主流程、权限、视觉；出新包前必读，避免重复内容
-.claude/skills/new-sub-app/ - 出马甲包的 skill："基于当前基座代码输出一个马甲包应用" → 选方向 / 主题色 / UI 风格 → 填品牌信息与 AdMob → 生成 apps/<slug> 并验证（模板、预设、scaffold.py 生成模块、emu.py 按文字操作模拟器、verify_release.py 验证 release 包、store_assets.py 生成并检查商店素材，都在这里；每个包的提审材料生成在 apps/<slug>/store/submission.md）
-build-logic/ - 构建约定插件：appbase.core-library（core 模块）、appbase.brand-app（读取 brand.properties、签名；validateBrand 拦 release 的示例包名/网址/邮箱，validateUpload 拦 AAB 里的 Google 测试广告 ID）
+apps/REGISTRY.md - 已出包登记表：每个包的核心用途、主流程、权限、视觉（复刻包另记账号、母包、变体组合）；出新包前必读，避免重复内容
+features/cleaner/ - 共享功能层（:features:cleaner，包名 com.appbase.feature.cleaner）：从 Orbit Clean 复制并去掉品牌值的扫描、删除、文件浏览操作、提醒规则和页面状态；复刻包依赖它，Orbit Clean 不依赖，见其 CLAUDE.md
+accounts/ - Play 账号配置（每个账号一个目录，account.properties 与网站文件不入库，只有 README 和模板入库）：开发者名称、网站根地址、邮箱、AdMob 发布商 ID、签名；品牌应用 brand.properties 的 ACCOUNT 指向它
+.claude/skills/new-sub-app/ - 出马甲包的 skill："基于当前基座代码输出一个马甲包应用" → 选出包方式（换领域 / 同领域 / 复刻）→ 方向或变体组合 / 主题色 / UI 风格 → 填品牌信息、账号与 AdMob → 生成 apps/<slug> 并验证（template/ 模板、clone/ 复刻模板与变体、预设、scaffold.py 生成模块、account.py 管账号与账号网站、emu.py 按文字操作模拟器、verify_release.py 验证 release 包、store_assets.py 生成并检查商店素材，都在这里；每个包的提审材料生成在 apps/<slug>/store/submission.md）
+build-logic/ - 构建约定插件：appbase.core-library（core 与 features 模块）、appbase.brand-app（读取 brand.properties、账号默认值、签名；validateBrand 拦 release 的示例包名/网址/邮箱，validateUpload 拦 AAB 里的 Google 测试广告 ID；填了 ACCOUNT 的包再由 AccountGuard 做账号串号校验）
 docs/ - 接入说明：Adjust、隐私政策；Play 提审：1.0.5 移除所有文件访问权限后的提交步骤与商店页（Materials_for_interrogation.md）；马甲包调研（第一版、第二版）
 </directory>
 
@@ -21,7 +23,8 @@ local.properties - Android SDK 路径（不入库）；签名配置 keystore-*.p
 
 构建：./gradlew testDebugUnitTest :apps:orbitclean:assembleDebug :apps:orbitclean:bundleRelease（产物在 apps/orbitclean/build/outputs/，文件名以 orbitclean- 开头）
 界面约定（Orbit Clean）：深空单主题，只有土星金 + 品牌青两个强调色；启动页是文件管理首页（常规页）；不申请任何存储权限，只读写用户用系统文件夹选择器（SAF）授权的文件夹；大场景页面（CLEAN 清理页/扫描/清理中/完成）用 ui/saturn 的 SaturnScene，常规列表页用 :core:ui 的 Common.kt。
-基座约定：core 不含任何品牌值、不依赖品牌代码（Gradle 模块隔离）；品牌差异只放在 apps/<品牌>/ 下。新增品牌 = apps 下新建目录（brand.properties + build.gradle.kts + 自己的代码），core 不用改。
+基座约定：core 和 features 不含任何品牌值、不依赖品牌代码（Gradle 模块隔离）；品牌差异只放在 apps/<品牌>/ 下。新增品牌 = apps 下新建目录（brand.properties + build.gradle.kts + 自己的代码），core 不用改。
+复刻约定（L0/L1）：前提是各 Play 账号互相隔离、AdMob 不共用；复刻包必须填 ACCOUNT，同一账号里同一母包只一个，账号之间的发布商、签名、网站、邮箱不串（AccountGuard 校验）；复刻的功能代码在 features/，母包 apps/orbitclean 不改。
 广告约定：基座只接 Google 官方测试广告（brand.properties 里的 ADMOB_* 是测试 ID），没有远程开关，四种广告位按 AdPolicy 频控固定开启；出正式包时把该包自己在 AdMob 新建的 ID 写进 apps/<品牌>/brand.local.properties（不入库，只对本包生效，优先于 brand.properties 和同名 Gradle 属性），brand.properties 保持测试 ID。
 设计稿：HTML 原型 https://claude.ai/artifact/D4D7LaCqhaayYoNw8C9v9q
 

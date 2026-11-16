@@ -15,6 +15,9 @@ import java.util.Properties
  *    多个品牌应用各放各的，不会互相串。文件不存在或某项留空时跳过。
  * 2. 同名 Gradle 属性（-P 或 ~/.gradle/gradle.properties）：对所有品牌应用生效，只适合放本机通用的设置，例如 ADMOB_TEST_DEVICE_IDS。
  * 3. brand.properties：入库的默认值（广告位是 Google 测试 ID）。
+ * 4. 账号默认值（可选）：brand.properties 填了 ACCOUNT 时读 accounts/<ACCOUNT>/account.properties（不入库），
+ *    SIGNING_PROPERTIES、FEEDBACK_EMAIL 在应用没填时用账号的；打 AAB 前另做账号串号校验（AccountGuard）。
+ *    没填 ACCOUNT 的应用不受影响。
  *
  * release 构建前执行 validateBrand：包名还是示例、隐私网址、网站地址或反馈邮箱无效时直接失败。
  * 打上传用的 AAB（bundleRelease）前再执行 validateUpload：AdMob 还是 Google 测试 ID 时失败（release APK 只做本机测试，不拦）。
@@ -35,7 +38,21 @@ class BrandAppPlugin : Plugin<Project> {
         val localProps = Properties().apply { if (localFile.isFile) localFile.reader(Charsets.UTF_8).use { load(it) } }
 
         fun localProp(key: String): String? = localProps.getProperty(key)?.takeIf { it.isNotBlank() }
-        fun prop(key: String): String = localProp(key) ?: providers.gradleProperty(key).orNull ?: brandProps.getProperty(key, "")
+
+        // 账号（可选）：ACCOUNT 指向 accounts/<ACCOUNT>/account.properties（不入库），见 AccountGuard。
+        // 没填 ACCOUNT 时 accountProps 为空，取值和以前完全一样
+        val account = (localProp("ACCOUNT") ?: brandProps.getProperty("ACCOUNT", "")).trim()
+        val accountProps = if (account.isEmpty()) Properties() else AccountGuard.load(AccountGuard.accountFile(rootDir, account))
+        if (account.isNotEmpty() && accountProps.isEmpty) {
+            logger.warn("$path: ACCOUNT=$account but ${AccountGuard.ACCOUNTS_DIR}/$account/account.properties is missing; debug builds still work, uploads are blocked")
+        }
+        fun accountProp(key: String): String? = accountProps.getProperty(key)?.takeIf { it.isNotBlank() }
+        // 优先级：brand.local.properties > Gradle 属性 > brand.properties（非空）> 账号配置的默认值（只有 ACCOUNT_DEFAULTS 里的键）
+        fun prop(key: String): String = localProp(key)
+            ?: providers.gradleProperty(key).orNull
+            ?: brandProps.getProperty(key)?.takeIf { it.isNotBlank() }
+            ?: (if (key in ACCOUNT_DEFAULTS) accountProp(key) else null)
+            ?: brandProps.getProperty(key, "")
         fun required(key: String): String = prop(key).trim().ifEmpty { throw GradleException("$label: $key is required") }
 
         val appId = required("APPLICATION_ID")
@@ -138,6 +155,15 @@ class BrandAppPlugin : Plugin<Project> {
         // 广告 ID 来自 Gradle 属性时，所有品牌应用都会读到同一套，只提醒、不拦
         val sharedAdKeys = adKeys.filter { localProp(it) == null && providers.gradleProperty(it).isPresent }
         val localLabel = "${projectDir.relativeTo(rootDir)}/brand.local.properties"
+        // 填了 ACCOUNT 的应用再做账号串号校验（AccountGuard）；只捕获文件路径和取值，不捕获 Project
+        val accountCheck: (() -> List<String>)? = if (account.isEmpty()) null else {
+            val root = rootDir
+            val dir = projectDir
+            val resolved = (listOf("APPLICATION_ID", "PRIVACY_URL", "WEBSITE_URL", "FEEDBACK_EMAIL") + adKeys).associateWith { prop(it).trim() }
+            val shared = sharedAdKeys.toList()
+            val upload = hasUploadKey
+            ({ AccountGuard.check(root, dir, account, resolved, shared, upload) })
+        }
         val validateUpload = tasks.register("validateUpload") {
             group = "verification"
             description = "Checks $label has real AdMob IDs before building an uploadable bundle"
@@ -153,6 +179,12 @@ class BrandAppPlugin : Plugin<Project> {
                             "Put this app's own AdMob IDs in $localLabel (not committed) before building an AAB for Google Play.",
                     )
                 }
+                if (accountCheck != null) {
+                    val accountProblems = accountCheck()
+                    if (accountProblems.isNotEmpty()) {
+                        throw GradleException("$label (ACCOUNT=$account):\n- " + accountProblems.joinToString("\n- "))
+                    }
+                }
             }
         }
         tasks.matching { it.name == "bundleRelease" }.configureEach { dependsOn(validateUpload) }
@@ -166,6 +198,9 @@ class BrandAppPlugin : Plugin<Project> {
         const val TEST_APP_OPEN = "ca-app-pub-3940256099942544/9257395921"
         val PACKAGE_NAME = Regex("[a-zA-Z][\\w]*(\\.[a-zA-Z][\\w]*)+")
         val EMAIL = Regex("[^@\\s]+@[^@\\s]+\\.[^@\\s]+")
+
+        /** 账号配置能提供默认值的键（应用自己在 brand.properties / brand.local.properties 填了就以应用为准） */
+        val ACCOUNT_DEFAULTS = setOf("SIGNING_PROPERTIES", "FEEDBACK_EMAIL")
 
         /** 写进 BuildConfig 的字符串字面量 */
         fun javaString(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""

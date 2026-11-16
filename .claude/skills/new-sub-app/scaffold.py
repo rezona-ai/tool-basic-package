@@ -22,6 +22,15 @@ config.json 字段：
   codePackage     可选，代码包名，默认 com.appbase.<slug>
   permissions     可选，清单里要加的 <uses-permission .../> 行（字符串列表）
   iconGlyph       可选，启动图标前景的 <path .../> 片段（108 画布，安全区 21..87）；颜色写 @color/icon_fg
+
+复刻模式（L0 换皮 / L1 换交互，见 SKILL.md 第 0 步方式 3）另加：
+  mode            "clone"
+  parent          母包 id（presets.json 的 cloneParents，目前只有 orbitclean）
+  account         Play 账号 id（accounts/<account>/account.properties）；必填
+  variants        {scene, nav, home, clean, browser, done}，取值见 presets.json 的 cloneVariants。
+                  至少 cloneMinDiffAxes 个轴和母包不同（场景永远不能用母包的），也不能和同一母包的已有复刻包完全相同
+  复刻模式先铺 template/，再用 clone/ 覆盖，最后用 clone/variants/<轴>/<取值>/ 覆盖；不生成 FolderPicker
+  （复刻包用 FolderGate 首次授权）。同一账号里同一个母包只能有一个复刻包。
 """
 import datetime
 import json
@@ -33,6 +42,8 @@ import sys
 ROOT = os.getcwd()
 SKILL = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(SKILL, "template")
+CLONE = os.path.join(SKILL, "clone")
+AXES = ["scene", "nav", "home", "clean", "browser", "done"]
 
 TEST_ADMOB = {
     "appId": "ca-app-pub-3940256099942544~3347511713",
@@ -101,6 +112,61 @@ def kt_bool(v):
     return "true" if v else "false"
 
 
+def read_props(path):
+    out = {}
+    if os.path.isfile(path):
+        for line in open(path, encoding="utf-8"):
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                out[k.strip()] = v.strip()
+    return out
+
+
+def existing_clones():
+    """apps 下所有复刻包：[(目录, 账号, 母包, 变体串)]"""
+    out = []
+    for name in sorted(os.listdir(os.path.join(ROOT, "apps"))):
+        props = read_props(os.path.join(ROOT, "apps", name, "brand.properties"))
+        if props.get("CLONE_OF"):
+            out.append((name, props.get("ACCOUNT", ""), props["CLONE_OF"], props.get("CLONE_VARIANTS", "")))
+    return out
+
+
+def variants_text(v):
+    return " ".join(f"{a}={v[a]}" for a in AXES)
+
+
+def check_clone(c, p):
+    """复刻模式的校验：母包、账号、变体组合。返回 (parent, variants, account, publisher)"""
+    parent = next((x for x in p["cloneParents"] if x["id"] == c.get("parent")), None) or sys.exit(
+        f"unknown parent {c.get('parent')}; choose from {[x['id'] for x in p['cloneParents']]}")
+    account = (c.get("account") or "").strip()
+    if not re.match(r"^[a-z][a-z0-9-]{1,30}$", account):
+        sys.exit("clone mode needs \"account\" (lowercase id, e.g. acme): the Play account this app goes to")
+    variants = c.get("variants") or {}
+    for axis in AXES:
+        ids = [x["id"] for x in p["cloneVariants"][axis]]
+        if variants.get(axis) not in ids:
+            sys.exit(f"variants.{axis} must be one of {ids}")
+    diff = [a for a in AXES if variants[a] != parent["variants"][a]]
+    if len(diff) < p["cloneMinDiffAxes"]:
+        sys.exit(f"only {len(diff)} axes differ from {parent['id']} ({diff}); need at least {p['cloneMinDiffAxes']}")
+    text = variants_text(variants)
+    for name, acc, par, var in existing_clones():
+        if par == parent["id"] and acc == account:
+            sys.exit(f"account {account} already has a clone of {parent['id']}: apps/{name}. One clone per parent per account")
+        if par == parent["id"] and var == text:
+            sys.exit(f"apps/{name} already uses the same variants ({text}); change at least one axis")
+    acc_file = os.path.join(ROOT, "accounts", account, "account.properties")
+    acc_props = read_props(acc_file)
+    if not acc_props:
+        print(f"warning: {os.path.relpath(acc_file, ROOT)} not found; debug builds work, uploads are blocked until it exists "
+              f"(python3 .claude/skills/new-sub-app/account.py init {account})")
+    publisher = acc_props.get("ADMOB_PUBLISHER_ID") or "pub-XXXXXXXXXXXXXXXX"
+    return parent, variants, account, publisher
+
+
 def create(config_path):
     with open(config_path, encoding="utf-8") as f:
         c = json.load(f)
@@ -125,7 +191,11 @@ def create(config_path):
         sys.exit(f"invalid codePackage: {code_package}")
     admob = {**TEST_ADMOB, **(c.get("admob") or {})}
     adjust_token = (c.get("adjustToken") or "").strip()
-    folder = bool(c.get("folderAccess"))
+    clone = c.get("mode") == "clone"
+    if clone:
+        parent, variants, account, publisher = check_clone(c, p)
+    # 复刻包用 FolderGate 首次授权，不需要 FolderPicker
+    folder = bool(c.get("folderAccess")) and not clone
     flags = {"ADJUST": bool(adjust_token), "NO_ADJUST": not adjust_token, "FOLDER": folder, "NO_FOLDER": not folder}
     glyph = c.get("iconGlyph") or DEFAULT_GLYPH
     mono = re.sub(r'@color/icon_fg', "#FFFFFFFF", glyph)
@@ -170,36 +240,59 @@ def create(config_path):
         "ICON_GLYPH": glyph,
         "ICON_GLYPH_MONO": mono,
     }
+    if clone:
+        tokens.update({
+            "ACCOUNT": account,
+            "PARENT": parent["id"],
+            "VARIANTS": variants_text(variants),
+            "PUBLISHER_ID": publisher,
+            "BROWSER_GRID": kt_bool(variants["browser"] == "grid"),
+            **{axis.upper(): variants[axis] for axis in AXES},
+        })
     # 这些占位留给 Claude 按方向填写（隐私政策、商店页、提审材料的正文）
     keep = {"SUMMARY", "WHAT_IT_DOES_HTML", "PERMISSION_ROWS", "LOCAL_DATA", "FULL_DESCRIPTION",
             "APP_DATA", "PERMISSION_ANSWERS", "CORE_FLOW"}
 
     package_path = code_package.replace(".", "/")
-    for dirpath, _, files in os.walk(TEMPLATE):
-        rel = os.path.relpath(dirpath, TEMPLATE).replace("__PACKAGE_PATH__", package_path)
-        out_dir = os.path.normpath(os.path.join(target, rel))
-        os.makedirs(out_dir, exist_ok=True)
-        for name in files:
-            src = os.path.join(dirpath, name)
-            dst = os.path.join(out_dir, name)
-            if name.endswith((".png", ".webp", ".jpg", ".ttf")):
-                shutil.copyfile(src, dst)
-                continue
-            text = apply_conditions(open(src, encoding="utf-8").read(), flags)
-            if not text.strip():  # 整个文件都在不成立的条件块里：不生成这个文件
-                continue
 
-            def sub(m):
-                key = m.group(1)
-                if key in keep:
-                    return m.group(0)
-                if key not in tokens:
-                    sys.exit(f"unknown token {{{{{key}}}}} in {src}")
-                return tokens[key]
+    def render_tree(root, skip=()):
+        """把 root 下的文件渲染进 target（同路径覆盖）；skip 里的顶层目录不处理"""
+        for dirpath, dirnames, files in os.walk(root):
+            if dirpath == root:
+                dirnames[:] = [d for d in dirnames if d not in skip]
+            rel = os.path.relpath(dirpath, root).replace("__PACKAGE_PATH__", package_path)
+            out_dir = os.path.normpath(os.path.join(target, rel))
+            os.makedirs(out_dir, exist_ok=True)
+            for name in files:
+                src = os.path.join(dirpath, name)
+                dst = os.path.join(out_dir, name)
+                if name.endswith((".png", ".webp", ".jpg", ".ttf")):
+                    shutil.copyfile(src, dst)
+                    continue
+                text = apply_conditions(open(src, encoding="utf-8").read(), flags)
+                if not text.strip():  # 整个文件都在不成立的条件块里：不生成这个文件
+                    continue
 
-            text = re.sub(r"\{\{([A-Z_]+)\}\}", sub, text)
-            with open(dst, "w", encoding="utf-8") as f:
-                f.write(text)
+                def sub(m):
+                    key = m.group(1)
+                    if key in keep:
+                        return m.group(0)
+                    if key not in tokens:
+                        sys.exit(f"unknown token {{{{{key}}}}} in {src}")
+                    return tokens[key]
+
+                text = re.sub(r"\{\{([A-Z_]+)\}\}", sub, text)
+                with open(dst, "w", encoding="utf-8") as f:
+                    f.write(text)
+
+    render_tree(TEMPLATE)
+    if clone:
+        # 复刻模式：模板 → clone/ 公共文件 → 每个轴选中的变体
+        render_tree(CLONE, skip=("variants",))
+        for axis in AXES:
+            variant_dir = os.path.join(CLONE, "variants", axis, variants[axis])
+            if os.path.isdir(variant_dir):  # browser 轴只是一个开关（BROWSER_GRID），没有单独的文件
+                render_tree(variant_dir)
     # 条件不成立而没生成文件的目录（如未开启文件夹授权时的 ui/folders）删掉
     for dirpath, dirnames, filenames in os.walk(target, topdown=False):
         if not os.listdir(dirpath):
@@ -216,7 +309,11 @@ def create(config_path):
             f.write("# 本应用的正式广告 ID 与 Adjust Token（不入库）。构建时优先于 brand.properties 和同名 Gradle 属性。\n")
             f.write("".join(f"{k}={v}\n" for k, v in real.items()))
         print(f"wrote apps/{slug}/brand.local.properties ({', '.join(real)}; not committed)")
-    print("Folder access: " + ("on (ui/folders/FolderPicker.kt, Settings → Folder access)" if folder else "off"))
+    if clone:
+        print(f"Clone of {parent['id']} for account {account}: {variants_text(variants)}")
+        print("Rewrite every user-visible string: data/Copy.kt, screens under ui/, store/ texts (SKILL.md step 7)")
+    else:
+        print("Folder access: " + ("on (ui/folders/FolderPicker.kt, Settings → Folder access)" if folder else "off"))
     print("Adjust: " + ("on (token in brand.local.properties)" if adjust_token else "off (Adjust sections removed from privacy policy and submission.md)"))
     left = []
     for dirpath, _, files in os.walk(target):
