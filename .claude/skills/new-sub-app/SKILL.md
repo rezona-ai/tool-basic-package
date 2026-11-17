@@ -54,10 +54,15 @@ AskUserQuestion 单选，header「出包方式」：
 1. config.json 写 `"mode": "clone"`、`"parent": "orbitclean"`、`"account"`、`"variants": {scene, nav, home, clean, browser, done}`，其余字段同第 7 步（不填 folderAccess）。为本包设计新的 `iconGlyph`，不要用土星、星球、轨道图形。
 2. `scaffold.py create <config.json>`：它会拦同账号同母包、变体差异不足、和已有复刻同组合的情况。
 3. **重写全部文案**（这是 L0 的主要工作量）：`data/Copy.kt`（类别名、简介、分组名、提醒）、各页面里的英文（按钮、标题、空状态、弹窗）、`MainActivity` 闪屏用的 tagline。语气和用词按本包定位重写，不沿用模板默认值，也不照抄母包或其他复刻包。
-4. 不改 `:features:cleaner`：需要改功能逻辑时先说明会影响所有复刻包，经用户同意再改，改完跑它的单测和至少一个复刻包的编译。
-5. 填 store/ 下的占位正文（同第 7 步第 4 点），内容要和清理 + 文件管理的实际功能、文件夹授权、通知权限一致。
-6. 更新 REGISTRY（总览一行 + 详细记录，写明账号、母包、变体组合）和模块 CLAUDE.md。
-7. 第 8 步验证按 checklist 的 A2 + B 节；另外运行 `account.py site <账号>` 生成本账号的网站文件（app-ads.txt + 各包隐私政策），交付时告诉用户上传到 WEBSITE_ROOT。
+4. **动效不能比母包差**（母包有常驻场景、粒子、扫描演出、完成迸发，复刻包靠 `ui/motion/` 补齐）：
+   - 大场景一律用 `ui/scene/CleanScene`，四个阶段（空闲 / 扫描 / 清理 / 完成）各有动画，粒子层 `FxLayer` 已经内置在场景里；卡片里的小场景传 `compact = true`。
+   - 新加或改写的页面也要接上 `ui/motion/Motion.kt` 的工具：入口卡片和列表项用 `Modifier.enterUp(index)` 错开浮现、可点的卡片加 `pressScale()`、大数字用 `animateCountUp` 从 0 滚到真实值、完成项用 `AnimatedCheck` 描出对勾、LazyColumn / LazyGrid 的项加 `Modifier.animateItem()`。页面转场已在 AppNav 里统一（`Motion.enter/exit/pop*`，完成页 `Motion.reveal`）。
+   - 扫描结果按 `ScanReveal` 的节奏逐行揭晓（`Motion.SCAN_REVEAL_MS`）。动画只做展示，不为等广告加载而拖时间。
+   - 系统关掉动画时 `rememberReducedMotion()` 为 true，所有工具都直接显示终态，新写的动画也要遵守。
+5. 不改 `:features:cleaner`：需要改功能逻辑时先说明会影响所有复刻包，经用户同意再改，改完跑它的单测和至少一个复刻包的编译。
+6. 填 store/ 下的占位正文（同第 7 步第 4 点），内容要和清理 + 文件管理的实际功能、文件夹授权、通知权限一致。
+7. 更新 REGISTRY（总览一行 + 详细记录，写明账号、母包、变体组合）和模块 CLAUDE.md。
+8. 第 8 步验证按 checklist 的 A2 + B 节，复刻包另外用 `emu.py record` 录一遍「冷启动 → 首页 → 扫描 → 清理 → 完成页」，打开帧图看每个阶段确实在动（首页数字滚动和卡片浮现、扫描光弧和逐行对勾、清理时粒子吸入、完成时迸发和逐条打勾）；另外运行 `account.py site <账号>` 生成本账号的网站文件（app-ads.txt + 各包隐私政策），交付时告诉用户上传到 WEBSITE_ROOT。
 
 ## 第 1 步：功能方向
 
@@ -130,7 +135,7 @@ AskUserQuestion 一次问 4 题：AdMob 应用 ID、横幅、插屏、开屏广�
 
 **电脑上连着多台设备时**（`adb devices` 里除了 emulator 还有真机），先 `export ANDROID_SERIAL=emulator-5554`，所有 adb、emu.py、verify_release.py、store_assets.py 命令只操作模拟器，不碰用户的手机。
 
-**操作模拟器用 `emu.py`**（在仓库根目录运行，命令见文件头）：`tap "<文字>"` 按文字点击（先精确匹配）、`type "<输入框标签>" "<内容>"` 输入并核对、`hide-keyboard` 只在键盘弹出时收起、`wait "<文字>"` 等页面出现、`scroll up|down` 滚动（列表项被底部按钮挡住时先滚出来再点）、`consent` 回答 GDPR 授权表单（debug 包模拟欧洲地区，全新安装首次启动必弹）、`close-ad` 关广告、`shot <png>` 截图查看。不要用坐标点击或直接按返回键收键盘：键盘弹出会让页面上移，键盘没弹出时返回键会退出页面。`adb input text` 只能输入 ASCII，示例内容用英文。
+**操作模拟器用 `emu.py`**（在仓库根目录运行，命令见文件头）：`tap "<文字>"` 按文字点击（先精确匹配）、`type "<输入框标签>" "<内容>"` 输入并核对、`hide-keyboard` 只在键盘弹出时收起、`wait "<文字>"` 等页面出现、`scroll up|down` 滚动（列表项被底部按钮挡住时先滚出来再点）、`consent` 回答 GDPR 授权表单（debug 包模拟欧洲地区，全新安装首次启动必弹）、`close-ad` 关广告、`shot <png>` 截图查看、`record start` / `record stop <png>` 录屏并拼成帧图（检查动画用，需要 ffmpeg）。不要用坐标点击或直接按返回键收键盘：键盘弹出会让页面上移，键盘没弹出时返回键会退出页面。`adb input text` 只能输入 ASCII，示例内容用英文。
 
 1. **debug 包：** `./gradlew :apps:<slug>:testDebugUnitTest :apps:<slug>:assembleDebug`，装到模拟器上用 emu.py 走一遍核心流程，确认无崩溃，截图看首页和设置页的配色与风格是否生效。
 2. **release 包装机**（审核员装的就是 release 包，R8 混淆后才会暴露的崩溃只能这样发现）：

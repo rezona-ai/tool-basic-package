@@ -30,6 +30,7 @@ import {{CODE_PACKAGE}}.ui.browser.BrowserScreen
 import {{CODE_PACKAGE}}.ui.clean.CategoryScreen
 import {{CODE_PACKAGE}}.ui.done.DoneScreen
 import {{CODE_PACKAGE}}.ui.info.DeviceInfoScreen
+import {{CODE_PACKAGE}}.ui.motion.Motion
 import {{CODE_PACKAGE}}.ui.scan.ScanScreen
 
 object Routes {
@@ -72,6 +73,8 @@ fun NavGraphBuilder.featureRoutes(nav: NavHostController) {
             navArgument("freed") { type = NavType.LongType },
             navArgument("count") { type = NavType.IntType },
         ),
+        // 完成页像“揭晓结果”一样放大淡入
+        enterTransition = Motion.reveal,
     ) { entry ->
         val args = entry.arguments!!
         DoneScreen(

@@ -34,6 +34,7 @@ import com.appbase.core.ui.theme.TextSecondary
 import com.appbase.tidygrove.ui.browser.BrowserScreen
 import com.appbase.tidygrove.ui.components.RequestNotificationPermissionOnce
 import com.appbase.tidygrove.ui.home.HomeScreen
+import com.appbase.tidygrove.ui.motion.Motion
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
@@ -79,7 +80,15 @@ fun AppNav(openScan: Boolean = false, onScanOpened: () -> Unit = {}) {
             }
         },
     ) { padding ->
-        NavHost(nav, startDestination = Routes.HOME, modifier = Modifier.padding(padding)) {
+        NavHost(
+            nav,
+            startDestination = Routes.HOME,
+            modifier = Modifier.padding(padding),
+            enterTransition = Motion.enter,
+            exitTransition = Motion.exit,
+            popEnterTransition = Motion.popEnter,
+            popExitTransition = Motion.popExit,
+        ) {
             composable(Routes.HOME) {
                 HomeScreen(
                     onScan = { nav.navigate(Routes.SCAN) },

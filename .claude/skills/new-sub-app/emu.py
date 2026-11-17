@@ -13,6 +13,8 @@
   python3 .claude/skills/new-sub-app/emu.py close-ad                   # 前台是广告时关掉它（Close / Continue to app / Skip，或右上角关闭按钮）
   python3 .claude/skills/new-sub-app/emu.py consent [yes|no]           # 回答 GDPR 授权表单（debug 包模拟欧洲地区，全新安装首次启动必弹）；默认 yes
   python3 .claude/skills/new-sub-app/emu.py shot <out.png>             # 截屏并缩到宽 540，便于查看（商店截图用 store_assets.py）
+  python3 .claude/skills/new-sub-app/emu.py record start [秒]          # 后台开始录屏（默认最长 30 秒），期间照常 tap / wait
+  python3 .claude/skills/new-sub-app/emu.py record stop <out.png>      # 停止录屏，拼成一张帧图（每秒 4 帧，需要 ffmpeg），视频存在旁边；用来检查动画
 
 踩过的坑（这些命令已经处理）：
   - 按包含匹配会点错（"Wi-Fi" 命中了介绍文字），所以先精确匹配
@@ -248,6 +250,43 @@ def shot(out):
     print(f"saved {out}")
 
 
+REC_REMOTE = "/sdcard/emu_rec.mp4"
+
+
+def record_start(seconds=30):
+    """后台开始录屏（最长 [seconds] 秒），期间照常用 tap / wait 操作；用 record stop 结束"""
+    adb("shell", "rm", "-f", REC_REMOTE, check=False)
+    subprocess.Popen(["adb", "shell", "screenrecord", "--time-limit", str(seconds), "--bit-rate", "6000000", REC_REMOTE],
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    time.sleep(1.0)
+    print(f"recording (max {seconds}s)… run: emu.py record stop <out.png>")
+
+
+def record_stop(out, fps=4):
+    """停止录屏，拉回视频，拼成一张帧图（每秒 [fps] 帧，按时间从左到右、从上到下）"""
+    import shutil
+    import tempfile
+    adb("shell", "pkill", "-INT", "screenrecord", check=False)
+    time.sleep(2.0)  # 等 screenrecord 写完文件尾
+    tmp = tempfile.mkdtemp()
+    video = f"{tmp}/rec.mp4"
+    adb("pull", REC_REMOTE, video)
+    adb("shell", "rm", "-f", REC_REMOTE, check=False)
+    if not shutil.which("ffmpeg"):
+        shutil.copyfile(video, out.rsplit(".", 1)[0] + ".mp4")
+        sys.exit("没装 ffmpeg，只保存了视频：" + out.rsplit(".", 1)[0] + ".mp4（brew install ffmpeg）")
+    frames = subprocess.run(
+        ["ffprobe", "-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries", "format=duration",
+         "-of", "default=nw=1:nk=1", video], capture_output=True, text=True).stdout.strip()
+    total = max(1, int(float(frames or "1") * fps))
+    cols = 8
+    rows = (total + cols - 1) // cols
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", video, "-vf",
+                    f"fps={fps},scale=240:-1,tile={cols}x{rows}", "-frames:v", "1", out], check=True)
+    shutil.copyfile(video, out.rsplit(".", 1)[0] + ".mp4")
+    print(f"saved {out} ({total} frames, {fps}/s) and the video next to it")
+
+
 if __name__ == "__main__":
     a = sys.argv[1:]
     if a[:1] == ["list"]:
@@ -272,5 +311,9 @@ if __name__ == "__main__":
         consent(a[1] if len(a) == 2 else "yes")
     elif len(a) == 2 and a[0] == "shot":
         shot(a[1])
+    elif a[:2] == ["record", "start"] and len(a) <= 3:
+        record_start(int(a[2]) if len(a) == 3 else 30)
+    elif a[:2] == ["record", "stop"] and len(a) == 3:
+        record_stop(a[2])
     else:
         sys.exit(__doc__)

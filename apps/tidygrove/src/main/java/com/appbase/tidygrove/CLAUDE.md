@@ -15,7 +15,10 @@ reminder/ReminderWorker.kt: 定时提醒：规则在 :features:cleaner 的 Remin
 ui/AppNav.kt: 路由中枢（变体 tabs）
 ui/Routes.kt: 两种导航共用的路由：扫描、类别、完成、子目录、设备信息、文件夹授权、设置
 ui/Placements.kt: 广告位：home_banner、done_banner、scan_done_interstitial、clean_done_interstitial
-ui/scene/CleanScene.kt: 大场景插槽（变体 ring）：IDLE / SCANNING / CLEANING / DONE 四个阶段
+ui/scene/CleanScene.kt: 大场景插槽（变体 ring）：IDLE / SCANNING / CLEANING / DONE 四个阶段各有动画，内置粒子层；卡片里用 compact
+ui/motion/Fx.kt: 帧驱动的粒子层 FxLayer：空闲环绕 / 扫描汇聚 / 清理螺旋吸入 / 完成迸发 + 冲击波
+ui/motion/Motion.kt: 动效工具箱：页面转场、数字滚动 animateCountUp、错开入场 enterUp、按压缩放 pressScale、对勾描线 AnimatedCheck、场景时钟、系统关动画判断
+ui/scan/ScanReveal.kt: 扫描结果逐行揭晓的节奏、结果行的转圈 → 对勾
 ui/home/HomeScreen.kt: 首页（变体 grid）
 ui/scan/ScanScreen.kt: 扫描页（变体 onetap）
 ui/clean/CategoryScreen.kt: 单个类别的文件列表、勾选、删除

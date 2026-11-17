@@ -115,6 +115,7 @@ import com.appbase.feature.cleaner.state.BrowserMessage
 import com.appbase.feature.cleaner.state.BrowserViewModel
 import com.appbase.feature.cleaner.state.BusyOp
 import com.appbase.feature.cleaner.state.FileClipboard
+import {{CODE_PACKAGE}}.ui.motion.pressScale
 
 /** true：网格（缩略图大块）；false：列表。由 scaffold 按变体 browser 写入 */
 private const val GRID = {{BROWSER_GRID}}
@@ -223,10 +224,11 @@ fun BrowserScreen(
                         }
                         val onLongClick = if (folderList && !searching) null else ({ vm.toggle(item.path) })
                         val checked = item.path in vm.selected
+                        // 删除、粘贴、新建后其余项平滑补位
                         if (GRID && !folderList) {
-                            FileTile(item, checked, selecting, onClick, onLongClick)
+                            FileTile(item, checked, selecting, onClick, onLongClick, Modifier.animateItem())
                         } else {
-                            FileRow(item = item, subtitle = subtitle, onClick = onClick, onLongClick = onLongClick) {
+                            FileRow(item = item, subtitle = subtitle, modifier = Modifier.animateItem(), onClick = onClick, onLongClick = onLongClick) {
                                 when {
                                     selecting -> Checkbox(
                                         checked = checked,
@@ -324,10 +326,11 @@ private fun BrowserMessage.text(): String = when (this) {
 /** 网格布局的一格：大缩略图 + 文件名；多选时右上角打勾 */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FileTile(item: FileItem, checked: Boolean, selecting: Boolean, onClick: () -> Unit, onLongClick: (() -> Unit)?) {
+private fun FileTile(item: FileItem, checked: Boolean, selecting: Boolean, onClick: () -> Unit, onLongClick: (() -> Unit)?, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(BrandTheme.style.corner(14.dp))
     Column(
-        Modifier
+        modifier
+            .pressScale()
             .clip(shape)
             .background(CardBg)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)

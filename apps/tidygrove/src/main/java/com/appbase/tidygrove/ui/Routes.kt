@@ -30,6 +30,7 @@ import com.appbase.tidygrove.ui.browser.BrowserScreen
 import com.appbase.tidygrove.ui.clean.CategoryScreen
 import com.appbase.tidygrove.ui.done.DoneScreen
 import com.appbase.tidygrove.ui.info.DeviceInfoScreen
+import com.appbase.tidygrove.ui.motion.Motion
 import com.appbase.tidygrove.ui.scan.ScanScreen
 
 object Routes {
@@ -72,6 +73,8 @@ fun NavGraphBuilder.featureRoutes(nav: NavHostController) {
             navArgument("freed") { type = NavType.LongType },
             navArgument("count") { type = NavType.IntType },
         ),
+        // 完成页像“揭晓结果”一样放大淡入
+        enterTransition = Motion.reveal,
     ) { entry ->
         val args = entry.arguments!!
         DoneScreen(

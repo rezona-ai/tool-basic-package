@@ -17,6 +17,8 @@ import androidx.compose.runtime.setValue
 import com.appbase.core.common.ReviewPrompt
 import kotlinx.coroutines.delay
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -80,8 +82,9 @@ fun FileKind.tint(): Color = when (this) {
 @Composable
 fun UsageBar(fraction: Float, modifier: Modifier = Modifier, height: Dp = 10.dp) {
     val shape = RoundedCornerShape(BrandTheme.style.corner(height / 2))
+    val shown by animateFloatAsState(fraction.coerceIn(0f, 1f), tween(900), label = "usage")
     Box(modifier.fillMaxWidth().height(height).clip(shape).background(Line)) {
-        Box(Modifier.fillMaxHeight().fillMaxWidth(fraction.coerceIn(0f, 1f)).clip(shape).background(ProgressGradient))
+        Box(Modifier.fillMaxHeight().fillMaxWidth(shown).clip(shape).background(ProgressGradient))
     }
 }
 

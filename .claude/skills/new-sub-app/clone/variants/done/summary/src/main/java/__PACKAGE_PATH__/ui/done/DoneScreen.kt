@@ -48,6 +48,13 @@ import {{CODE_PACKAGE}}.ui.components.RecordCleanAndMaybeReview
 import {{CODE_PACKAGE}}.ui.components.UsageBar
 import {{CODE_PACKAGE}}.ui.components.icon
 import {{CODE_PACKAGE}}.ui.components.tint
+import {{CODE_PACKAGE}}.ui.motion.animateCountUp
+import {{CODE_PACKAGE}}.ui.motion.enterUp
+import {{CODE_PACKAGE}}.ui.motion.pressScale
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import {{CODE_PACKAGE}}.ui.scene.CleanScene
 import {{CODE_PACKAGE}}.ui.scene.ScenePhase
 
@@ -60,7 +67,8 @@ fun DoneScreen(cleaned: Set<FileKind>, freed: Long, count: Int, onHome: () -> Un
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {
             CleanScene(ScenePhase.DONE, 1f, Modifier.fillMaxWidth(0.6f).align(Alignment.CenterHorizontally)) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(formatSize(freed), fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                    // 释放的空间从 0 滚到实际值
+                    Text(formatSize(animateCountUp(freed.toFloat()).toLong()), fontSize = 30.sp, fontWeight = FontWeight.Bold)
                     Text("cleared", color = TextSecondary, fontSize = 13.sp)
                 }
             }
@@ -74,13 +82,16 @@ fun DoneScreen(cleaned: Set<FileKind>, freed: Long, count: Int, onHome: () -> Un
                     Text("Before  ${(vm.storage.before * 100).toInt()}%", fontSize = 13.sp, color = TextSecondary)
                     UsageBar(vm.storage.before)
                     Text("Now  ${(vm.storage.after * 100).toInt()}%", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    UsageBar(vm.storage.after)
+                    // “现在”这条从清理前的长度缩到清理后，直观看到腾出的空间
+                    var shrink by remember { mutableStateOf(false) }
+                    LaunchedEffect(Unit) { shrink = true }
+                    UsageBar(if (shrink) vm.storage.after else vm.storage.before)
                 }
             }
             SectionTitle("Keep going")
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                recommends.forEach { r ->
-                    AppCard(Modifier.fillMaxWidth(), onClick = { onOpen(r.kind) }) {
+                recommends.forEachIndexed { i, r ->
+                    AppCard(Modifier.fillMaxWidth().enterUp(i + 2).pressScale(), onClick = { onOpen(r.kind) }) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             IconBadge(r.kind.icon(), r.kind.tint())
                             Spacer(Modifier.width(12.dp))
