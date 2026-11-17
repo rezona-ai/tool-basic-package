@@ -13,6 +13,7 @@ import java.util.Properties
  * - SIGNING_PROPERTIES：本账号的上传密钥配置文件（项目根目录，不入库），作为本账号各包的默认签名
  *
  * 没填 ACCOUNT 的应用（例如 Orbit Clean）完全不走这里，构建结果不变。
+ * 白包（brand.properties 的 ADS=off）不带广告：不要求 ADMOB_PUBLISHER_ID，也不查广告 ID 和 app-ads.txt，其余照查。
  * 只检查“本账号的值有没有填对、有没有混进别的账号或别的包的值”，不做任何隐藏代码来源的处理。
  */
 object AccountGuard {
@@ -33,6 +34,7 @@ object AccountGuard {
     /**
      * @param values 本应用最终生效的取值（已按 brand.local > 账号 > Gradle 属性 > brand.properties 合并）
      * @param sharedAdKeys 来自 Gradle 属性（所有应用共用）的广告 ID 键
+     * @param adsEnabled false 表示白包（ADS=off），跳过 AdMob 相关的检查
      * @return 问题列表，空表示通过
      */
     fun check(
@@ -42,6 +44,7 @@ object AccountGuard {
         values: Map<String, String>,
         sharedAdKeys: List<String>,
         hasUploadKey: Boolean,
+        adsEnabled: Boolean = true,
     ): List<String> = buildList {
         val accountFile = accountFile(rootDir, account)
         if (!accountFile.isFile) {
@@ -49,16 +52,18 @@ object AccountGuard {
             return@buildList
         }
         val acc = load(accountFile)
-        val missing = ACCOUNT_KEYS.filter { acc.getProperty(it).isNullOrBlank() }
+        val missing = ACCOUNT_KEYS.filter { acc.getProperty(it).isNullOrBlank() && (adsEnabled || it != "ADMOB_PUBLISHER_ID") }
         if (missing.isNotEmpty()) add("${accountFile.relativeTo(rootDir)}: ${missing.joinToString()} must be filled")
 
-        // 1. 广告 ID 必须来自本应用自己的配置，并且都属于本账号的 AdMob 发布商
-        if (sharedAdKeys.isNotEmpty()) {
+        // 1. 广告 ID 必须来自本应用自己的配置，并且都属于本账号的 AdMob 发布商（白包跳过 1 和 4）
+        if (adsEnabled && sharedAdKeys.isNotEmpty()) {
             add("${sharedAdKeys.joinToString()} come from Gradle properties (shared by every app). Put this app's IDs in brand.local.properties")
         }
         val publisher = acc.getProperty("ADMOB_PUBLISHER_ID", "").trim()
         val pubDigits = PUBLISHER.matchEntire(publisher)?.groupValues?.get(1)
-        if (pubDigits == null) {
+        if (!adsEnabled) {
+            // 白包：不带广告
+        } else if (pubDigits == null) {
             add("ADMOB_PUBLISHER_ID must look like pub-0000000000000000: $publisher")
         } else {
             AD_KEYS.forEach { key ->
@@ -86,7 +91,7 @@ object AccountGuard {
 
         // 4. 网站根目录的 app-ads.txt 只写本账号的发布商
         val appAds = File(projectDir, "store/app-ads.txt")
-        if (pubDigits != null && appAds.isFile) {
+        if (adsEnabled && pubDigits != null && appAds.isFile) {
             val pubs = AD_TXT_PUBLISHER.findAll(appAds.readText()).map { it.groupValues[1] }.toSet()
             if (pubs != setOf(pubDigits)) {
                 add("store/app-ads.txt must list only $publisher (found ${pubs.joinToString { "pub-$it" }.ifEmpty { "none" }})")

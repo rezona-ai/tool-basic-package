@@ -63,6 +63,7 @@
 - **debug 包**：广告位固定用 Google 测试 ID，不读 `brand.properties` 里的广告位。
 - **release APK**：会先跑 `validateBrand`（检查包名、网址、邮箱是不是示例值），用于本机测试。
 - **上传用的 AAB**（`bundleRelease`）：会再跑 `validateUpload`。AdMob 还是 Google 测试 ID 时构建直接失败，所以基座默认配置打不出可上传的 AAB，这是有意的。
+- **无广告包（白包）**：`brand.properties` 写 `ADS=off`，广告、授权弹窗、归因 SDK 不进包，清单里没有 AdMob App ID 和 `AD_ID`，打 AAB 不要求 AdMob ID。用于先上无广告首版、稳定后同包名改 `ADS=on` 升级（见 6.2）。
 
 ## 3. 目录结构
 
@@ -168,6 +169,7 @@ gradle/libs.versions.toml 依赖版本
 | `ADMOB_TEST_DEVICE_IDS` | 否 | 只收测试广告的设备 ID，逗号分隔，建议放 `~/.gradle/gradle.properties` |
 | `APPLOVIN_SDK_KEY`、`MAX_*_AD_UNIT_ID` | 否 | AppLovin MAX；保持 `YOUR_` 前缀时不初始化，直接用 AdMob |
 | `ADJUST_APP_TOKEN` | 否 | Adjust App Token，留空不初始化 |
+| `ADS` | 否 | 不填：和以前一样（不写 `BuildConfig.ADS_ENABLED`，已上架包的产物不变）。`off`：无广告包（白包），build-logic 从运行时排除 play-services-ads、UMP、AppLovin、Adjust、Install Referrer，叠加清单去掉 AdMob App ID 和广告 ID 权限，R8 补 `-dontwarn`，validateUpload 和 AccountGuard 跳过 AdMob 相关检查；应用代码按 `BuildConfig.ADS_ENABLED` 用不带 SDK 的 Provider（Tidy Grove 的 `NoAds`）、不启动归因。`on`：正常带广告，并写 `ADS_ENABLED = true`。白包没有远程开关，要带广告只能改成 `on` 发新版本，并同步改商店声明 |
 | `ACCOUNT` | 复刻包必填 | 所属 Play 账号（`accounts/<ACCOUNT>/`）；填了才读账号默认值、做账号串号校验 |
 | `CLONE_OF` / `CLONE_VARIANTS` | 复刻包自动写 | 母包和变体组合；构建不读，scaffold.py 用来拦重复 |
 
@@ -176,8 +178,8 @@ gradle/libs.versions.toml 依赖版本
 | 任务 | 何时运行 | 拦截什么 |
 |---|---|---|
 | `validateBrand` | 所有 release 构建前 | 包名是示例或不合法；隐私地址、网站地址不是真实的 `https://`；反馈邮箱无效或是 example.com |
-| `validateUpload` | `bundleRelease` 前 | AdMob 应用 ID 或任一广告位为空、或仍是 Google 测试 ID |
-| 账号串号校验（AccountGuard） | `bundleRelease` 前，只对填了 `ACCOUNT` 的包 | 账号配置缺失；广告 ID 不属于本账号的发布商，或来自所有包共用的 Gradle 属性；没有上传密钥；隐私政策、网站不在本账号域名下；`store/app-ads.txt` 不是本账号的发布商；取值或 `src/main`、`store/` 的文字里出现别的账号或不属于本账号的包的名称、包名、域名、邮箱、发布商 ID。详见 [accounts/README.md](accounts/README.md) |
+| `validateUpload` | `bundleRelease` 前 | AdMob 应用 ID 或任一广告位为空、或仍是 Google 测试 ID（`ADS=off` 的白包不查） |
+| 账号串号校验（AccountGuard） | `bundleRelease` 前，只对填了 `ACCOUNT` 的包 | 账号配置缺失（白包不要求 `ADMOB_PUBLISHER_ID`，也不查广告 ID 和 `app-ads.txt`）；广告 ID 不属于本账号的发布商，或来自所有包共用的 Gradle 属性；没有上传密钥；隐私政策、网站不在本账号域名下；`store/app-ads.txt` 不是本账号的发布商；取值或 `src/main`、`store/` 的文字里出现别的账号或不属于本账号的包的名称、包名、域名、邮箱、发布商 ID。详见 [accounts/README.md](accounts/README.md) |
 
 ### 6.4 品牌目录里还有什么
 

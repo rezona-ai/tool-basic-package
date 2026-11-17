@@ -19,7 +19,7 @@ accounts/
 | DEVELOPER_NAME | Play 管理中心里的开发者名称 |
 | WEBSITE_ROOT | 本账号的开发者网站根地址（https://），`app-ads.txt` 放在它的根目录；本账号各包的隐私政策、网站都在这个域名下 |
 | FEEDBACK_EMAIL | 本账号的联系邮箱；本账号的包没单独填时用它 |
-| ADMOB_PUBLISHER_ID | 本账号对应的 AdMob 发布商 ID（`pub-` + 16 位数字） |
+| ADMOB_PUBLISHER_ID | 本账号对应的 AdMob 发布商 ID（`pub-` + 16 位数字）；账号里只有白包（`ADS=off`）时可以先空着 |
 | SIGNING_PROPERTIES | 本账号的上传密钥配置文件（项目根目录，不入库）；本账号的包没单独填时用它 |
 
 ## 构建时的校验（build-logic 的 AccountGuard）
@@ -31,6 +31,8 @@ accounts/
 - 有上传密钥；
 - 隐私政策、网站地址在本账号的网站域名下；`store/app-ads.txt` 只写本账号的发布商；
 - 本应用的包名、链接、邮箱、广告 ID，以及 `src/main`、`store/` 里的文字，不出现别的账号或不属于本账号的应用（例如 Orbit Clean）的名称、包名、域名、邮箱、发布商 ID。
+
+白包（`brand.properties` 的 `ADS=off`）不带广告：不要求 `ADMOB_PUBLISHER_ID`，不查广告 ID 和 `app-ads.txt`，其余照查；`account.py site` 在没有发布商 ID 时不生成 `app-ads.txt`。
 
 没填 `ACCOUNT` 的包（Orbit Clean、QR Atelier、Namewise）不走这些校验，构建结果不变。
 

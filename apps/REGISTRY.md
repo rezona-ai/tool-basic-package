@@ -16,7 +16,7 @@
 
 | 目录 | 应用名 | 账号（ACCOUNT） | 母包 | 变体组合（scene / nav / home / clean / browser / done） | 配色 / 风格 | 状态 |
 |---|---|---|---|---|---|---|
-| tidygrove | Tidy Grove | studio-b（账号配置未填） | orbitclean | ring / tabs / grid / onetap / grid / checklist（和母包不同 5 个轴） | 森绿浅色（#2E9D5B + 琥珀 #E0A526）/ 柔和卡片，叶子 + 星光图标 | 已生成，未上架；包名、链接、邮箱、AdMob 都是占位 |
+| tidygrove | Tidy Grove | studio-b（账号配置未填） | orbitclean | ring / tabs / grid / onetap / grid / checklist（和母包不同 5 个轴） | 森绿浅色（#2E9D5B + 琥珀 #E0A526）/ 柔和卡片，叶子 + 星光图标 | 已生成，未上架；首版为无广告白包（ADS=off），包名、链接、邮箱都是占位 |
 
 母包自己的组合：orbitclean = saturn / tabs / dashboard / stepwise / list / summary。复刻包至少 3 个轴不同，场景不用 saturn。
 
@@ -62,8 +62,8 @@
 - **账号**：studio-b（accounts/studio-b/account.properties 已建，五项都还没填）；不能和 Orbit Clean 放同一个 Play 账号
 - **和母包的区别**：场景环形进度（母包土星）、首页两列宫格（母包仪表盘）、一键清理（母包分步）、文件页网格（母包列表）、完成页清单（母包汇总）；导航同为底部标签。配色森绿浅色 + 柔和卡片，系统字体；全部文案按“打理树林”语气重写（Weeds / Doubles / Big branches…）
 - **Play 账号 / 商店页**：未定；商店文案见 apps/tidygrove/store/listing.md，提审材料见 apps/tidygrove/store/submission.md
-- **版本记录**：1.0.0（versionCode 10000）由 new-sub-app skill 复刻模式生成，未上传
-- **广告位**：home_banner、done_banner、clean_done_interstitial（一次清理完成后最多一次）、app_open_cold / app_open_warm；一键清理流程不弹 scan_done_interstitial，不使用返回插屏
-- **权限**：INTERNET、POST_NOTIFICATIONS（及广告 SDK 自带的 ACCESS_NETWORK_STATE、AD_ID 等）；没有任何存储权限，SAF 文件夹授权
+- **版本记录**：1.0.0（versionCode 10000）由 new-sub-app skill 复刻模式生成，未上传；2026-11-17 定为无广告首版（白包，ADS=off），上架稳定后同包名改 ADS=on 发带广告的版本（步骤见 store/submission.md 第 5 节）
+- **广告位**：首版无广告，广告位调用都落到 NoAds。改 ADS=on 后为 home_banner、done_banner、clean_done_interstitial（一次清理完成后最多一次）、app_open_cold / app_open_warm；一键清理流程不弹 scan_done_interstitial，不使用返回插屏
+- **权限**：首版 INTERNET、POST_NOTIFICATIONS，及 WorkManager 的 ACCESS_NETWORK_STATE、WAKE_LOCK、RECEIVE_BOOT_COMPLETED、FOREGROUND_SERVICE；没有 AD_ID，没有任何存储权限，SAF 文件夹授权。带广告版本会多出广告 SDK 的 AD_ID、ADSERVICES 等
 - **新依赖**：无（用 :features:cleaner、work-runtime、coil）
 - **隐私政策 / 网站**：占位 https://example.com/tidygrove/privacy/ 、https://example.com/tidygrove/（账号网站定了以后换成 <WEBSITE_ROOT>tidygrove/privacy/ 和 <WEBSITE_ROOT>tidygrove/）

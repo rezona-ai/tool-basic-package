@@ -25,7 +25,7 @@
         android:theme="@style/Theme.App"
         tools:ignore="DataExtractionRules">
 
-        <!-- AdMob App ID，取自 brand.properties / brand.local.properties 的 ADMOB_APP_ID -->
+        <!-- AdMob App ID，取自 brand.properties / brand.local.properties 的 ADMOB_APP_ID；白包（ADS=off）时为空，SDK 也不在包里 -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="${admobAppId}" />
