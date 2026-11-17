@@ -34,7 +34,7 @@ Tidy Grove keeps the folders on your phone neat. Share the folders you want it t
 - Tidy Grove only sees the folders you choose with Android's folder picker. It asks for no storage permission and never uploads your files.
 - Remove a folder's access any time in Settings → Folder access.
 
-Tidy Grove is free and supported by ads.
+Tidy Grove is free to use.
 
 ## 提审材料
 

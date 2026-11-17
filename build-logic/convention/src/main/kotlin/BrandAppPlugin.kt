@@ -22,6 +22,12 @@ import java.util.Properties
  * release 构建前执行 validateBrand：包名还是示例、隐私网址、网站地址或反馈邮箱无效时直接失败。
  * 打上传用的 AAB（bundleRelease）前再执行 validateUpload：AdMob 还是 Google 测试 ID 时失败（release APK 只做本机测试，不拦）。
  * debug 包固定使用 Google 测试广告位，不读 brand.properties 里的广告位。
+ *
+ * 广告开关（可选，只读 brand.local.properties / brand.properties 的 ADS）：
+ * - 不填：和以前完全一样（不写 BuildConfig.ADS_ENABLED），已上架的包构建产物不变。
+ * - ADS=off：无广告包（白包）。广告、授权弹窗、归因 SDK（AD_SDKS）不进 APK / AAB，清单里的 AdMob App ID 留空，
+ *   validateUpload 和 AccountGuard 不再要求 AdMob ID、发布商和 app-ads.txt。应用代码按 BuildConfig.ADS_ENABLED 不初始化广告和归因。
+ * - ADS=on：正常带广告，同时写 BuildConfig.ADS_ENABLED = true（白包上架后发带广告的版本时改成 on）。
  */
 class BrandAppPlugin : Plugin<Project> {
 
@@ -60,6 +66,17 @@ class BrandAppPlugin : Plugin<Project> {
         val versionName = required("VERSION_NAME")
         val appName = required("APP_NAME")
 
+        // 广告开关：只读本应用的文件（不读 Gradle 属性，免得一个全局属性改到所有应用）；不填时行为和以前完全一样
+        val adsSetting = (localProp("ADS") ?: brandProps.getProperty("ADS", "")).trim().lowercase()
+        if (adsSetting !in setOf("", "on", "off")) throw GradleException("$label: ADS must be on or off: $adsSetting")
+        val adsOff = adsSetting == "off"
+        if (adsOff) {
+            // 白包：广告、授权弹窗、归因 SDK 不进运行时（编译期仍可见，core:ads 照常编译；应用代码按 ADS_ENABLED 不去用它们）
+            configurations.matching { it.name.endsWith("RuntimeClasspath") }.configureEach {
+                AD_SDKS.forEach { (group, module) -> exclude(mapOf("group" to group, "module" to module)) }
+            }
+        }
+
         // 上传密钥：SIGNING_PROPERTIES 指定项目根目录的密钥配置文件（配置文件和密钥库都不入库）。
         // 未填或文件不存在时 release 用 debug 签名，只能自测、不能上传 Play
         val signingPropsName = prop("SIGNING_PROPERTIES").trim()
@@ -87,11 +104,27 @@ class BrandAppPlugin : Plugin<Project> {
                 listOf("APPLOVIN_SDK_KEY", "MAX_BANNER_AD_UNIT_ID", "MAX_INTERSTITIAL_AD_UNIT_ID", "MAX_APP_OPEN_AD_UNIT_ID").forEach { key ->
                     buildConfigField("String", key, javaString(prop(key)))
                 }
-                // AdMob App ID 写入清单（MAX 接入 Google Adapter 时同样需要）
-                manifestPlaceholders["admobAppId"] = prop("ADMOB_APP_ID")
+                // AdMob App ID 写入清单（MAX 接入 Google Adapter 时同样需要）；白包留空
+                manifestPlaceholders["admobAppId"] = if (adsOff) "" else prop("ADMOB_APP_ID")
+                if (adsSetting.isNotEmpty()) buildConfigField("boolean", "ADS_ENABLED", (!adsOff).toString())
                 buildConfigField("String", "ADMOB_TEST_DEVICE_IDS", javaString(prop("ADMOB_TEST_DEVICE_IDS")))
                 // Adjust 归因：留空不初始化；debug 包走 Sandbox，release 包走 Production
                 buildConfigField("String", "ADJUST_APP_TOKEN", javaString(prop("ADJUST_APP_TOKEN")))
+            }
+
+            if (adsOff) {
+                // 白包：用构建类型的清单（优先级高于 src/main）去掉 AdMob App ID 和广告 ID 权限，清单里不留广告痕迹。
+                // 应用自己有 src/<debug|release>/AndroidManifest.xml 时不覆盖它
+                val overlay = layout.buildDirectory.file("appbase/no-ads/AndroidManifest.xml").get().asFile
+                overlay.parentFile.mkdirs()
+                overlay.writeText(NO_ADS_MANIFEST)
+                listOf("debug", "release").forEach { type ->
+                    if (file("src/$type/AndroidManifest.xml").isFile) {
+                        logger.warn("$path: src/$type/AndroidManifest.xml exists, ADS=off does not strip the AdMob App ID from it")
+                    } else {
+                        sourceSets.getByName(type).manifest.srcFile(overlay)
+                    }
+                }
             }
 
             if (hasUploadKey) {
@@ -118,6 +151,13 @@ class BrandAppPlugin : Plugin<Project> {
                     isMinifyEnabled = true
                     isShrinkResources = true
                     proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+                    if (adsOff) {
+                        // core:ads 里引用了被排除的 SDK 类，R8 默认把缺类当错误
+                        val rules = layout.buildDirectory.file("appbase/no-ads-rules.pro").get().asFile
+                        rules.parentFile.mkdirs()
+                        rules.writeText(AD_SDK_PACKAGES.joinToString("\n", postfix = "\n") { "-dontwarn $it.**" })
+                        proguardFile(rules)
+                    }
                     signingConfig = if (hasUploadKey) {
                         signingConfigs.getByName("upload")
                     } else {
@@ -162,7 +202,8 @@ class BrandAppPlugin : Plugin<Project> {
             val resolved = (listOf("APPLICATION_ID", "PRIVACY_URL", "WEBSITE_URL", "FEEDBACK_EMAIL") + adKeys).associateWith { prop(it).trim() }
             val shared = sharedAdKeys.toList()
             val upload = hasUploadKey
-            ({ AccountGuard.check(root, dir, account, resolved, shared, upload) })
+            val ads = !adsOff
+            ({ AccountGuard.check(root, dir, account, resolved, shared, upload, ads) })
         }
         val validateUpload = tasks.register("validateUpload") {
             group = "verification"
@@ -172,7 +213,8 @@ class BrandAppPlugin : Plugin<Project> {
                 if (sharedAdKeys.isNotEmpty()) {
                     logger.warn("$path: ${sharedAdKeys.joinToString()} come from Gradle properties, which every brand app reads. Put this app's IDs in $localLabel instead.")
                 }
-                val problems = adIds.filter { (_, v) -> v.isEmpty() || TEST_PUBLISHER in v }.keys
+                // 白包不带广告，不要求 AdMob ID
+                val problems = if (adsOff) emptySet() else adIds.filter { (_, v) -> v.isEmpty() || TEST_PUBLISHER in v }.keys
                 if (problems.isNotEmpty()) {
                     throw GradleException(
                         "$label: ${problems.joinToString()} still use Google test ads (or are empty). " +
@@ -201,6 +243,40 @@ class BrandAppPlugin : Plugin<Project> {
 
         /** 账号配置能提供默认值的键（应用自己在 brand.properties / brand.local.properties 填了就以应用为准） */
         val ACCOUNT_DEFAULTS = setOf("SIGNING_PROPERTIES", "FEEDBACK_EMAIL")
+
+        /** ADS=off 时不进运行时的 SDK（group, module）：AdMob、UMP 授权弹窗、AppLovin MAX、Adjust、Install Referrer，与 core:ads 的依赖一一对应 */
+        val AD_SDKS = listOf(
+            "com.google.android.gms" to "play-services-ads",
+            "com.google.android.ump" to "user-messaging-platform",
+            "com.applovin" to "applovin-sdk",
+            "com.adjust.sdk" to "adjust-android",
+            "com.android.installreferrer" to "installreferrer",
+        )
+
+        /** ADS=off 时叠加的清单：去掉 AdMob App ID 和广告 ID 相关权限（SDK 已排除，这里兜底） */
+        val NO_ADS_MANIFEST = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <!-- appbase.brand-app 生成：ADS=off（白包）时去掉广告痕迹，不要手改 -->
+            <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+                xmlns:tools="http://schemas.android.com/tools">
+                <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
+                <uses-permission android:name="android.permission.ACCESS_ADSERVICES_AD_ID" tools:node="remove" />
+                <uses-permission android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION" tools:node="remove" />
+                <uses-permission android:name="android.permission.ACCESS_ADSERVICES_TOPICS" tools:node="remove" />
+                <application>
+                    <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" tools:node="remove" />
+                </application>
+            </manifest>
+        """.trimIndent() + "\n"
+
+        /** 上面这些 SDK 的 Java 包名（R8 -dontwarn） */
+        val AD_SDK_PACKAGES = listOf(
+            "com.google.android.gms.ads",
+            "com.google.android.ump",
+            "com.applovin",
+            "com.adjust.sdk",
+            "com.android.installreferrer",
+        )
 
         /** 写进 BuildConfig 的字符串字面量 */
         fun javaString(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""

@@ -94,15 +94,19 @@ def site(account):
     props = read_props(account_file(account))
     if not props:
         sys.exit(f"{os.path.relpath(account_file(account), ROOT)} not found (account.py init {account})")
-    issues = [p for p in problems(props) if not p.startswith("SIGNING")]
+    # 账号里还只有白包（ADS=off）时可以没有 AdMob：不生成 app-ads.txt，等第一个带广告的版本前再补
+    issues = [p for p in problems(props) if not p.startswith("SIGNING") and p != "ADMOB_PUBLISHER_ID is empty"]
     if issues:
         sys.exit("fix the account first:\n  " + "\n  ".join(issues))
     out = os.path.join(ACCOUNTS, account, "site")
     if os.path.isdir(out):
         shutil.rmtree(out)
     os.makedirs(out)
-    with open(os.path.join(out, "app-ads.txt"), "w", encoding="utf-8") as f:
-        f.write(f"google.com, {props['ADMOB_PUBLISHER_ID']}, DIRECT, f08c47fec0942fa0\n")
+    if props.get("ADMOB_PUBLISHER_ID"):
+        with open(os.path.join(out, "app-ads.txt"), "w", encoding="utf-8") as f:
+            f.write(f"google.com, {props['ADMOB_PUBLISHER_ID']}, DIRECT, f08c47fec0942fa0\n")
+    else:
+        print("note: ADMOB_PUBLISHER_ID is empty, app-ads.txt not written (fine while every app here is ADS=off)")
     rows = []
     for slug, app, _ in apps_of(account):
         src = os.path.join(ROOT, "apps", slug, "store", "privacy-policy", "index.html")

@@ -9,7 +9,7 @@ apps/REGISTRY.md - 已出包登记表：每个包的核心用途、主流程、�
 features/cleaner/ - 共享功能层（:features:cleaner，包名 com.appbase.feature.cleaner）：从 Orbit Clean 复制并去掉品牌值的扫描、删除、文件浏览操作、提醒规则和页面状态；复刻包依赖它，Orbit Clean 不依赖，见其 CLAUDE.md
 accounts/ - Play 账号配置（每个账号一个目录，account.properties 与网站文件不入库，只有 README 和模板入库）：开发者名称、网站根地址、邮箱、AdMob 发布商 ID、签名；品牌应用 brand.properties 的 ACCOUNT 指向它
 .claude/skills/new-sub-app/ - 出马甲包的 skill："基于当前基座代码输出一个马甲包应用" → 选出包方式（换领域 / 同领域 / 复刻）→ 方向或变体组合 / 主题色 / UI 风格 → 填品牌信息、账号与 AdMob → 生成 apps/<slug> 并验证（template/ 模板、clone/ 复刻模板与变体、预设、scaffold.py 生成模块、account.py 管账号与账号网站、emu.py 按文字操作模拟器、verify_release.py 验证 release 包、store_assets.py 生成并检查商店素材，都在这里；每个包的提审材料生成在 apps/<slug>/store/submission.md）
-build-logic/ - 构建约定插件：appbase.core-library（core 与 features 模块）、appbase.brand-app（读取 brand.properties、账号默认值、签名；validateBrand 拦 release 的示例包名/网址/邮箱，validateUpload 拦 AAB 里的 Google 测试广告 ID；填了 ACCOUNT 的包再由 AccountGuard 做账号串号校验）
+build-logic/ - 构建约定插件：appbase.core-library（core 与 features 模块）、appbase.brand-app（读取 brand.properties、账号默认值、签名；validateBrand 拦 release 的示例包名/网址/邮箱，validateUpload 拦 AAB 里的 Google 测试广告 ID；brand.properties 写 ADS=off 时打无广告白包（广告/归因 SDK 不进包、不查 AdMob），不填时行为不变；填了 ACCOUNT 的包再由 AccountGuard 做账号串号校验）
 docs/ - 接入说明：Adjust、隐私政策；Play 提审：1.0.5 移除所有文件访问权限后的提交步骤与商店页（Materials_for_interrogation.md）；马甲包调研（第一版、第二版）
 </directory>
 

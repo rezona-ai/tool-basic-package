@@ -2,7 +2,8 @@
  * [INPUT]: 依赖 BuildConfig（brand.properties 注入的值），依赖 core 的 CoreServices / 广告 / 归因 / 提醒，
  *          依赖 :features:cleaner 的 Cleaner，依赖 data/Copy 的分组文案、reminder/ReminderWorker、ui/theme 的 installAppTheme
  * [OUTPUT]: 对外提供 App（instance）
- * [POS]: Tidy Grove 的 Application：注册品牌主题和 CoreConfig，初始化清理功能层，选择广告 Provider（MAX → AdMob → 占位），启动归因、提醒
+ * [POS]: Tidy Grove 的 Application：注册品牌主题和 CoreConfig，初始化清理功能层，选择广告 Provider（白包 NoAds；否则 MAX → AdMob → 占位），
+ *        带广告时启动归因，启动提醒
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 package com.appbase.tidygrove
@@ -41,8 +42,10 @@ class App : Application(), SingletonImageLoader.Factory {
         installAppTheme()
         CoreServices.init(this, coreConfig())
         Cleaner.init(this, CoreServices.files, Copy.groups)
-        Attribution.init(this)
+        // 白包（ADS=off）：广告和归因 SDK 不在包里，这里也不去碰它们
+        if (BuildConfig.ADS_ENABLED) Attribution.init(this)
         Ads.provider = when {
+            !BuildConfig.ADS_ENABLED -> NoAds
             MaxAdProvider.isConfigured -> MaxAdProvider
             AdMobAdProvider.isConfigured -> AdMobAdProvider
             else -> PlaceholderAdProvider

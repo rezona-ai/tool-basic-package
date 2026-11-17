@@ -5,9 +5,11 @@ Tidy Grove 品牌应用模块（:apps:tidygrove）的代码。复刻模式：功
 所属账号 studio-b（brand.properties 的 ACCOUNT）；母包和变体组合登记在 apps/REGISTRY.md。
 变体：scene=ring nav=tabs home=grid clean=onetap browser=grid done=checklist（场景 ring、导航 tabs、首页 grid、清理流程 onetap、文件页 grid、完成页 checklist）。
 不申请任何存储权限，只读写用户用系统文件夹选择器（SAF）授权的文件夹；首次打开先过 FolderGate 授权。
+当前是无广告首版（白包，brand.properties 的 ADS=off）：广告、授权弹窗、归因 SDK 不进包，广告位调用都落到 NoAds；上架稳定后改 ADS=on 发带广告的版本。
 
 成员清单
-App.kt: Application，注册主题和 CoreConfig，Cleaner.init（分组文案来自 data/Copy），选择广告 Provider，启动归因、提醒，图片 / 视频缩略图加载
+App.kt: Application，注册主题和 CoreConfig，Cleaner.init（分组文案来自 data/Copy），选择广告 Provider（白包用 NoAds），带广告时启动归因，启动提醒，图片 / 视频缩略图加载
+NoAds.kt: 白包的广告 Provider：横幅不占位，插屏 / 开屏直接跳过，不弹授权表单（debug 包也一样）
 MainActivity.kt: 继承 :core:ui 的 StartupActivity：闪屏、主题、FolderGate 包住 AppNav；点提醒通知直达扫描
 data/Copy.kt: 功能文案真相源：类别名与简介、冗余分组名、重复组标题、提醒文案（每个复刻包都要重写）
 data/ExternalApps.kt: 交给其他应用（模板自带，本应用暂未用到）
