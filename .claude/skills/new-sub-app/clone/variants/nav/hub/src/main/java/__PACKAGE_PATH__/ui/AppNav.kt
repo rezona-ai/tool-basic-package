@@ -19,6 +19,7 @@ import com.appbase.core.ui.theme.Bg
 import {{CODE_PACKAGE}}.ui.browser.BrowserScreen
 import {{CODE_PACKAGE}}.ui.components.RequestNotificationPermissionOnce
 import {{CODE_PACKAGE}}.ui.home.HomeScreen
+import {{CODE_PACKAGE}}.ui.motion.Motion
 
 @Composable
 fun AppNav(openScan: Boolean = false, onScanOpened: () -> Unit = {}) {
@@ -31,7 +32,15 @@ fun AppNav(openScan: Boolean = false, onScanOpened: () -> Unit = {}) {
         }
     }
     Scaffold(containerColor = Bg) { padding ->
-        NavHost(nav, startDestination = Routes.HOME, modifier = Modifier.padding(padding)) {
+        NavHost(
+            nav,
+            startDestination = Routes.HOME,
+            modifier = Modifier.padding(padding),
+            enterTransition = Motion.enter,
+            exitTransition = Motion.exit,
+            popEnterTransition = Motion.popEnter,
+            popExitTransition = Motion.popExit,
+        ) {
             composable(Routes.HOME) {
                 HomeScreen(
                     onScan = { nav.navigate(Routes.SCAN) },

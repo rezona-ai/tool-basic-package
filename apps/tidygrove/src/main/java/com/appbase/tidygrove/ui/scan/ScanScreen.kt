@@ -2,7 +2,7 @@
  * [INPUT]: 依赖 :features:cleaner 的 ScanViewModel / CleanViewModel / Cleaner，依赖 ui/scene 的 CleanScene、ui/clean 的 CleaningView，
  *          依赖 data/Copy，依赖 :core:ui 的通用组件
  * [OUTPUT]: 对外提供 ScanScreen
- * [POS]: 扫描页（变体：onetap 一键）：扫描三类可清理内容，结果出来后按类整块勾选（冗余、重复默认勾上，大文件默认不勾），
+ * [POS]: 扫描页（变体：onetap 一键）：结果按 ScanReveal 的节奏逐行揭晓、总数滚动；扫描三类可清理内容，结果出来后按类整块勾选（冗余、重复默认勾上，大文件默认不勾），
  *        一个按钮直接清理全部勾选内容 → 清理中 → 完成页；想细看某一类可以点“查看”进类别页。
  *        这里只在清理完成后弹插屏（CleaningView 里），扫描结果出来时不弹。接口在所有清理流程变体里一致
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
@@ -60,6 +60,7 @@ import com.appbase.tidygrove.ui.clean.CleaningView
 import com.appbase.tidygrove.ui.components.ConfirmDialog
 import com.appbase.tidygrove.ui.components.icon
 import com.appbase.tidygrove.ui.components.tint
+import com.appbase.tidygrove.ui.motion.enterUp
 import com.appbase.tidygrove.ui.scene.CleanScene
 import com.appbase.tidygrove.ui.scene.ScenePhase
 
@@ -75,6 +76,7 @@ fun ScanScreen(onBack: () -> Unit, onOpenKind: (FileKind) -> Unit, onCleaned: (S
         return
     }
     val ui by scan.ui.collectAsState()
+    val reveal = rememberScanReveal(ui)
     clean.groups.collectAsState().value // 结果变化时刷新勾选数
     var confirm by remember { mutableStateOf(false) }
     val selectedBytes = clean.selectedBytes
@@ -84,22 +86,23 @@ fun ScanScreen(onBack: () -> Unit, onOpenKind: (FileKind) -> Unit, onCleaned: (S
         TopBar("Sweep", onBack = onBack)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             CleanScene(
-                if (ui.done) ScenePhase.DONE else ScenePhase.SCANNING,
-                ui.progress,
+                if (reveal.done) ScenePhase.DONE else ScenePhase.SCANNING,
+                reveal.sceneProgress,
                 Modifier.fillMaxWidth(0.62f).align(Alignment.CenterHorizontally),
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(if (ui.done) formatSize(selectedBytes) else "${(ui.progress * 100).toInt()}%", fontSize = 30.sp, fontWeight = FontWeight.Bold)
-                    Text(if (ui.done) "to clear" else "looking around", color = TextSecondary, fontSize = 13.sp)
+                    Text(formatSize(if (reveal.done) selectedBytes else (ui.junkBytes * reveal.ease).toLong()), fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                    Text(if (reveal.done) "to clear" else "looking around", color = TextSecondary, fontSize = 13.sp)
                 }
             }
             Spacer(Modifier.size(16.dp))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 16.dp)) {
-                ui.rows.forEach { row ->
+                ui.rows.forEachIndexed { i, row ->
+                    val rowDone = reveal.rowDone(i)
                     val kind = row.kind
                     val total = row.count ?: 0
                     val picked = clean.selectedIn(kind)
-                    AppCard(Modifier.fillMaxWidth()) {
+                    AppCard(Modifier.fillMaxWidth().enterUp(i)) {
                         Row(Modifier.padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             IconBadge(kind.icon(), kind.tint())
                             Spacer(Modifier.width(12.dp))
@@ -107,7 +110,7 @@ fun ScanScreen(onBack: () -> Unit, onOpenKind: (FileKind) -> Unit, onCleaned: (S
                                 Text(Copy.title(kind), fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                                 Text(
                                     when {
-                                        !row.done -> "Looking…"
+                                        !rowDone -> "Looking…"
                                         total == 0 -> "All clear"
                                         else -> "$picked of ${plural(total, "file")} picked · ${formatSize(row.size ?: 0)}"
                                     },
@@ -116,7 +119,7 @@ fun ScanScreen(onBack: () -> Unit, onOpenKind: (FileKind) -> Unit, onCleaned: (S
                                 )
                             }
                             when {
-                                !row.done -> CircularProgressIndicator(color = Primary, strokeWidth = 2.dp, modifier = Modifier.padding(12.dp).size(20.dp))
+                                !rowDone -> RowStatus(false, Modifier.padding(12.dp))
                                 total > 0 -> {
                                     TextButton(onClick = { onOpenKind(kind) }) { Text("Look", color = Primary) }
                                     Checkbox(
@@ -125,6 +128,8 @@ fun ScanScreen(onBack: () -> Unit, onOpenKind: (FileKind) -> Unit, onCleaned: (S
                                         colors = CheckboxDefaults.colors(checkedColor = Primary),
                                     )
                                 }
+                                // 这一类没找到东西：也给一个对勾，表示查过了
+                                else -> RowStatus(true, Modifier.padding(12.dp))
                             }
                         }
                     }
@@ -134,11 +139,11 @@ fun ScanScreen(onBack: () -> Unit, onOpenKind: (FileKind) -> Unit, onCleaned: (S
         Column(Modifier.navigationBarsPadding().padding(16.dp)) {
             GradientButton(
                 when {
-                    !ui.done -> "Looking…"
+                    !reveal.done -> "Looking…"
                     selectedCount == 0 -> "Pick something to clear"
                     else -> "Clear ${formatSize(selectedBytes)}"
                 },
-                enabled = ui.done && selectedCount > 0,
+                enabled = reveal.done && selectedCount > 0,
             ) { confirm = true }
         }
     }

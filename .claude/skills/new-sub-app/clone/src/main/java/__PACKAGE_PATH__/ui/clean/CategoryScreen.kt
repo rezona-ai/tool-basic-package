@@ -52,6 +52,7 @@ import com.appbase.feature.cleaner.state.CleanResult
 import com.appbase.feature.cleaner.state.CleanViewModel
 import {{CODE_PACKAGE}}.data.Copy
 import {{CODE_PACKAGE}}.ui.components.ConfirmDialog
+import {{CODE_PACKAGE}}.ui.motion.enterUp
 
 @Composable
 fun CategoryScreen(kind: FileKind, onBack: () -> Unit, onCleaned: (CleanResult) -> Unit) {
@@ -92,6 +93,8 @@ fun CategoryScreen(kind: FileKind, onBack: () -> Unit, onCleaned: (CleanResult) 
                             items(g.items, key = { it.path }) { file ->
                                 FileRow(
                                     item = file,
+                                    // 删除后其余行平滑补位；第一屏依次浮现
+                                    modifier = Modifier.animateItem().enterUp(g.items.indexOf(file).coerceAtMost(10)),
                                     subtitle = "${formatSize(file.size)} · ${formatDate(file.modified)}",
                                     onClick = { vm.toggle(file.path) },
                                     onLongClick = { if (!file.isDir) openFile(context, file.path) },

@@ -21,7 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -64,6 +64,15 @@ import {{CODE_PACKAGE}}.data.Copy
 import {{CODE_PACKAGE}}.ui.Placements
 import {{CODE_PACKAGE}}.ui.components.icon
 import {{CODE_PACKAGE}}.ui.components.tint
+import {{CODE_PACKAGE}}.ui.motion.animateCountUp
+import {{CODE_PACKAGE}}.ui.motion.enterUp
+import {{CODE_PACKAGE}}.ui.motion.pressScale
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import {{CODE_PACKAGE}}.ui.scene.CleanScene
 import {{CODE_PACKAGE}}.ui.scene.ScenePhase
 
@@ -81,15 +90,20 @@ fun HomeScreen(
         onPauseOrDispose { }
     }
     val storage = vm.storage
+    // 第一次打开时用量从 0 滚到实际值、入口依次浮现；从子页面回来不重播
+    var counted by rememberSaveable { mutableStateOf(false) }
+    val firstShow = remember { !counted }
+    val used = animateCountUp(storage.usedFraction, play = firstShow)
+    LaunchedEffect(Unit) { counted = true }
     Column(Modifier.fillMaxSize().background(Bg)) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(BuildConfig.APP_NAME, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 if (onSettings != null) IconButton(onClick = onSettings) { Icon(Icons.Rounded.Settings, "Settings") }
             }
-            CleanScene(ScenePhase.IDLE, storage.usedFraction, Modifier.fillMaxWidth(0.7f).align(Alignment.CenterHorizontally)) {
+            CleanScene(ScenePhase.IDLE, used, Modifier.fillMaxWidth(0.7f).align(Alignment.CenterHorizontally)) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("${(storage.usedFraction * 100).toInt()}%", fontSize = 40.sp, fontWeight = FontWeight.Bold)
+                    Text("${(used * 100).toInt()}%", fontSize = 40.sp, fontWeight = FontWeight.Bold)
                     Text("in use", color = TextSecondary, fontSize = 13.sp)
                 }
             }
@@ -101,18 +115,18 @@ fun HomeScreen(
             GradientButton("Scan my folders", onClick = onScan)
             SectionTitle("Clean up")
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                FileKind.CLEANABLE.forEach { kind ->
-                    EntryRow(kind.icon(), kind.tint(), Copy.title(kind), Copy.blurb(kind)) { onKind(kind) }
+                FileKind.CLEANABLE.forEachIndexed { i, kind ->
+                    EntryRow(kind.icon(), kind.tint(), Copy.title(kind), Copy.blurb(kind), Modifier.enterUp(i, firstShow)) { onKind(kind) }
                 }
             }
             SectionTitle("Browse by type")
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 8.dp)) {
-                items(FileKind.BROWSABLE) { kind -> TypeChip(kind) { onKind(kind) } }
+                itemsIndexed(FileKind.BROWSABLE) { i, kind -> TypeChip(kind, Modifier.enterUp(i + 3, firstShow)) { onKind(kind) } }
             }
             SectionTitle("More")
             Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 16.dp)) {
-                if (onFiles != null) EntryRow(Icons.Rounded.Folder, Secondary, "My files", "Browse, move and rename", onFiles)
-                EntryRow(Icons.Rounded.PhoneAndroid, Primary, "About this phone", "Storage, memory, battery", onDeviceInfo)
+                if (onFiles != null) EntryRow(Icons.Rounded.Folder, Secondary, "My files", "Browse, move and rename", Modifier.enterUp(9, firstShow), onFiles)
+                EntryRow(Icons.Rounded.PhoneAndroid, Primary, "About this phone", "Storage, memory, battery", Modifier.enterUp(10, firstShow), onDeviceInfo)
             }
         }
         AdBanner(Placements.HOME_BANNER, Modifier.fillMaxWidth())
@@ -120,8 +134,8 @@ fun HomeScreen(
 }
 
 @Composable
-private fun EntryRow(icon: ImageVector, tint: Color, title: String, subtitle: String, onClick: () -> Unit) {
-    AppCard(Modifier.fillMaxWidth(), onClick = onClick) {
+private fun EntryRow(icon: ImageVector, tint: Color, title: String, subtitle: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    AppCard(modifier.fillMaxWidth().pressScale(), onClick = onClick) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             IconBadge(icon, tint)
             Spacer(Modifier.width(12.dp))
@@ -135,9 +149,10 @@ private fun EntryRow(icon: ImageVector, tint: Color, title: String, subtitle: St
 }
 
 @Composable
-private fun TypeChip(kind: FileKind, onClick: () -> Unit) {
+private fun TypeChip(kind: FileKind, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Column(
-        Modifier
+        modifier
+            .pressScale()
             .clip(RoundedCornerShape(BrandTheme.style.corner(16.dp)))
             .background(CardBg)
             .clickable(onClick = onClick)

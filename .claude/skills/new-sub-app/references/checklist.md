@@ -33,6 +33,7 @@
 - [ ] `./gradlew :apps:<slug>:testDebugUnitTest :apps:<slug>:assembleDebug` 通过
 - [ ] 模拟器上：冷启动开屏（测试广告）→ 首页 → 走完一次核心流程 → 结果页插屏 → 返回 → 设置页各项可点
 - [ ] 复刻包：文件夹授权页 → 首页 → 扫描 → 清理 → 清理完成插屏 → 完成页 → 文件页（浏览、多选、新建文件夹）→ 设备信息 → 设置页（Folder access、提醒开关）
+- [ ] 复刻包动效：`emu.py record` 录一遍首页 → 扫描 → 清理 → 完成页，帧图里每个阶段都在动（数字滚动、卡片错开浮现、扫描光效和逐行对勾、清理粒子、完成迸发 / 冲击波、页面转场）；新写的页面也用了 `ui/motion` 的工具
 - [ ] 无崩溃（`adb logcat -b crash` 为空）
 - [ ] 合并后的清单只有预期的权限：`aapt dump permissions <apk>`
 - [ ] release 包（R8 混淆后）：`verify_release.py start <slug>` → 用 emu.py 走完核心流程 → `verify_release.py finish <slug>` 无崩溃

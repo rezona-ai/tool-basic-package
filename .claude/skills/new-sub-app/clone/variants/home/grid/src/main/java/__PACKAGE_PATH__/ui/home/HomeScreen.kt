@@ -22,7 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.PhoneAndroid
@@ -58,6 +58,15 @@ import {{CODE_PACKAGE}}.data.Copy
 import {{CODE_PACKAGE}}.ui.Placements
 import {{CODE_PACKAGE}}.ui.components.icon
 import {{CODE_PACKAGE}}.ui.components.tint
+import {{CODE_PACKAGE}}.ui.motion.animateCountUp
+import {{CODE_PACKAGE}}.ui.motion.enterUp
+import {{CODE_PACKAGE}}.ui.motion.pressScale
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import {{CODE_PACKAGE}}.ui.scene.CleanScene
 import {{CODE_PACKAGE}}.ui.scene.ScenePhase
 
@@ -77,6 +86,11 @@ fun HomeScreen(
         onPauseOrDispose { }
     }
     val storage = vm.storage
+    // 第一次打开时用量从 0 滚到实际值；从子页面回来不重播
+    var counted by rememberSaveable { mutableStateOf(false) }
+    val firstShow = remember { !counted }
+    val used = animateCountUp(storage.usedFraction, play = firstShow)
+    LaunchedEffect(Unit) { counted = true }
     val tools = FileKind.CLEANABLE.map { Entry(it.icon(), it.tint(), Copy.title(it), Copy.blurb(it)) { onKind(it) } } +
         listOfNotNull(
             onFiles?.let { Entry(Icons.Rounded.Folder, Secondary, "My files", "Browse and organize", it) },
@@ -99,12 +113,12 @@ fun HomeScreen(
                 }
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
-                AppCard(Modifier.fillMaxWidth()) {
+                AppCard(Modifier.fillMaxWidth().enterUp(0, enabled = firstShow)) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        CleanScene(ScenePhase.IDLE, storage.usedFraction, Modifier.width(112.dp))
+                        CleanScene(ScenePhase.IDLE, used, Modifier.width(112.dp), compact = true)
                         Spacer(Modifier.width(16.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("${(storage.usedFraction * 100).toInt()}% full", fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                            Text("${(used * 100).toInt()}% full", fontSize = 26.sp, fontWeight = FontWeight.Bold)
                             Text("${formatSize(storage.free)} left", color = TextSecondary, fontSize = 13.sp)
                             Spacer(Modifier.height(12.dp))
                             GradientButton("Scan", height = 40.dp, onClick = onScan)
@@ -112,19 +126,19 @@ fun HomeScreen(
                     }
                 }
             }
-            items(tools) { Tile(it) }
+            itemsIndexed(tools) { i, e -> Tile(e, Modifier.enterUp(i + 1, enabled = firstShow)) }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Text("By type", fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.padding(top = 8.dp))
             }
-            items(types) { Tile(it) }
+            itemsIndexed(types) { i, e -> Tile(e, Modifier.enterUp(i + tools.size + 2, enabled = firstShow)) }
         }
         AdBanner(Placements.HOME_BANNER, Modifier.fillMaxWidth())
     }
 }
 
 @Composable
-private fun Tile(e: Entry) {
-    AppCard(Modifier.fillMaxWidth(), onClick = e.onClick) {
+private fun Tile(e: Entry, modifier: Modifier = Modifier) {
+    AppCard(modifier.fillMaxWidth().pressScale(), onClick = e.onClick) {
         Column(Modifier.padding(14.dp)) {
             IconBadge(e.icon, e.tint, 40.dp)
             Spacer(Modifier.height(10.dp))

@@ -70,6 +70,8 @@ fun CleaningView(vm: CleanViewModel, onCleaned: (CleanResult) -> Unit) {
             }
         }
         Spacer(Modifier.height(28.dp))
-        Text("Removing ${plural(vm.cleaningCount, "item")}…", color = TextSecondary)
+        // 已处理的条数跟着进度一起跳，和中间的释放空间同步
+        val doneCount = (vm.cleaningCount * progress.value).toInt().coerceAtMost(vm.cleaningCount)
+        Text("Removing $doneCount of ${plural(vm.cleaningCount, "item")}…", color = TextSecondary)
     }
 }

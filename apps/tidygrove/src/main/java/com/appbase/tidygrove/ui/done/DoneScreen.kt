@@ -25,7 +25,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -56,6 +55,13 @@ import com.appbase.tidygrove.ui.Placements
 import com.appbase.tidygrove.ui.components.RecordCleanAndMaybeReview
 import com.appbase.tidygrove.ui.components.icon
 import com.appbase.tidygrove.ui.components.tint
+import com.appbase.tidygrove.ui.motion.AnimatedCheck
+import com.appbase.tidygrove.ui.motion.Motion
+import com.appbase.tidygrove.ui.motion.animateCountUp
+import com.appbase.tidygrove.ui.motion.enterUp
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import com.appbase.tidygrove.ui.scene.CleanScene
 import com.appbase.tidygrove.ui.scene.ScenePhase
 
@@ -67,7 +73,9 @@ fun DoneScreen(cleaned: Set<FileKind>, freed: Long, count: Int, onHome: () -> Un
     Column(Modifier.fillMaxSize().background(Bg)) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
-                CleanScene(ScenePhase.DONE, 1f, Modifier.width(72.dp))
+                CleanScene(ScenePhase.DONE, 1f, Modifier.width(72.dp), compact = true) {
+                    AnimatedCheck(Secondary, Modifier.size(30.dp), delayMs = 250)
+                }
                 Spacer(Modifier.width(14.dp))
                 Column {
                     Text("Room to grow", fontSize = 24.sp, fontWeight = FontWeight.Bold)
@@ -76,19 +84,23 @@ fun DoneScreen(cleaned: Set<FileKind>, freed: Long, count: Int, onHome: () -> Un
             }
             AppCard(Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 Column(Modifier.padding(vertical = 4.dp)) {
-                    cleaned.sortedBy { it.ordinal }.forEach { CheckLine(Copy.title(it)) }
-                    CheckLine("${plural(count, "file")} cleared away")
-                    CheckLine("${formatSize(freed)} of space back")
+                    // 结果逐条打勾：每条错开出现，对勾随后描出
+                    var line = 0
+                    cleaned.sortedBy { it.ordinal }.forEach { CheckLine(Copy.title(it), index = line++) }
+                    CheckLine("${plural(count, "file")} cleared away", index = line++)
+                    val freedShown = animateCountUp(freed.toFloat(), durationMs = 900)
+                    CheckLine("${formatSize(freedShown.toLong())} of space back", index = line++)
                     val after = (vm.storage.after * 100).toInt()
                     val before = (vm.storage.before * 100).toInt()
-                    CheckLine(if (before > after) "Now $after% used, down from $before%" else "Now $after% used", last = true)
+                    // 清理很少时前后百分比一样，不显示“原来”
+                    CheckLine(if (before > after) "Now $after% used, down from $before%" else "Now $after% used", index = line, last = true)
                 }
             }
             SectionTitle("Next patch to tidy")
             AppCard(Modifier.fillMaxWidth()) {
                 recommends.forEachIndexed { i, r ->
                     Row(
-                        Modifier.fillMaxWidth().clickable { onOpen(r.kind) }.padding(horizontal = 16.dp, vertical = 14.dp),
+                        Modifier.fillMaxWidth().enterUp(i + 5).clickable { onOpen(r.kind) }.padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(r.kind.icon(), null, tint = r.kind.tint(), modifier = Modifier.size(22.dp))
@@ -109,9 +121,11 @@ fun DoneScreen(cleaned: Set<FileKind>, freed: Long, count: Int, onHome: () -> Un
 }
 
 @Composable
-private fun CheckLine(text: String, last: Boolean = false) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Rounded.CheckCircle, null, tint = Secondary, modifier = Modifier.size(20.dp))
+private fun CheckLine(text: String, index: Int, last: Boolean = false) {
+    Row(Modifier.fillMaxWidth().enterUp(index).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(20.dp).clip(CircleShape).background(Secondary.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
+            AnimatedCheck(Secondary, Modifier.size(20.dp), delayMs = 200L + index * Motion.STAGGER_MS * 2)
+        }
         Spacer(Modifier.width(12.dp))
         Text(text, fontSize = 14.sp)
     }
